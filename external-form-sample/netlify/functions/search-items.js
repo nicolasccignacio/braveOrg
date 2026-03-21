@@ -1,10 +1,13 @@
 /**
- * Typeahead: runs SOQL against Item__c (Read permission on integration user).
- * POST JSON { "q": "partial name", "limit": 20 } or GET ?q=&limit=
+ * Item list / search: SOQL on SF_ITEM_OBJECT (default Item__c).
+ * Empty q: list up to 2000 rows (page load). With q: name LIKE, up to 50 rows.
  */
 
 const { sfRestRequest, escapeSoqlString } = require("./lib/sf-client");
 const { clientIp, allowRequest, json, corsHeaders } = require("./lib/http-helpers");
+
+const MAX_LIST = 2000;
+const MAX_SEARCH = 50;
 
 /** Safe API name for SOQL FROM (default Item__c). Override with env SF_ITEM_OBJECT if your object differs. */
 function itemObjectApiName() {
@@ -15,11 +18,18 @@ function itemObjectApiName() {
   return raw;
 }
 
-function buildQuery(term, limit) {
+function buildQuery(term, limitParam) {
   const objectName = itemObjectApiName();
-  const lim = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 50);
   const raw = String(term || "").trim();
-  if (!raw) {
+  const parsed = parseInt(limitParam, 10);
+  const hasFilter = !!raw;
+  const maxLim = hasFilter ? MAX_SEARCH : MAX_LIST;
+  const defaultLim = hasFilter ? 20 : MAX_LIST;
+  const lim = Math.min(
+    Math.max(Number.isFinite(parsed) && parsed > 0 ? parsed : defaultLim, 1),
+    maxLim
+  );
+  if (!hasFilter) {
     return `SELECT Id, Name FROM ${objectName} ORDER BY Name LIMIT ${lim}`;
   }
   const noWild = raw.replace(/[%_\\]/g, "");

@@ -33,7 +33,7 @@
       input[type="text"],
       input[type="number"],
       input[type="date"],
-      input[type="search"] {
+      select {
         width: 100%;
         box-sizing: border-box;
         margin-top: 0.2rem;
@@ -46,43 +46,6 @@
         margin-top: 0.35rem;
         margin-bottom: 0;
       }
-      .search-wrap {
-        position: relative;
-        z-index: 5;
-      }
-      .results {
-        list-style: none;
-        margin: 0.25rem 0 0;
-        padding: 0;
-        border: 1px solid rgba(127, 127, 127, 0.45);
-        border-radius: 6px;
-        max-height: 12rem;
-        overflow: auto;
-        display: none;
-        position: relative;
-        z-index: 20;
-        background: canvas;
-        color: canvastext;
-        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
-      }
-      .results.open {
-        display: block;
-      }
-      .results li button {
-        width: 100%;
-        text-align: left;
-        padding: 0.45rem 0.6rem;
-        border: none;
-        background: transparent;
-        font: inherit;
-        color: inherit;
-        cursor: pointer;
-      }
-      .results li button:hover,
-      .results li button:focus {
-        background: rgba(127, 127, 127, 0.18);
-        outline: none;
-      }
       .picked {
         font-size: 0.85rem;
         margin-top: 0.35rem;
@@ -91,15 +54,15 @@
       .picked.err {
         color: crimson;
       }
-      .search-status {
+      .item-status {
         font-size: 0.8rem;
         margin-top: 0.35rem;
         min-height: 1.2em;
       }
-      .search-status.loading {
+      .item-status.loading {
         opacity: 0.85;
       }
-      .search-status.error {
+      .item-status.error {
         color: crimson;
         white-space: pre-wrap;
         word-break: break-word;
@@ -142,32 +105,23 @@
   <body>
     <h1>Create expense</h1>
     <p class="sub">
-      Static page on Netlify; data goes through serverless functions to Salesforce (no secrets in the
-      browser).
+      Static page on Netlify; items load once from Salesforce when you open the page (serverless
+      function).
     </p>
 
     <form id="f" novalidate>
       <input type="text" name="website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true" />
 
-      <label for="itemSearch">Item (search by name)</label>
-      <p class="hint" id="itemSearchHint">
-        Type at least 2 letters, wait for results, then <strong>click a row</strong> to select. Typing a
-        name alone does not select an item.
+      <label for="itemSelect">Item</label>
+      <p class="hint">
+        List loads on page open (up to 2000 records). If the list is empty or errors, set Netlify
+        <code>SF_ITEM_OBJECT</code> to your org’s object API name (must exist for the integration
+        user).
       </p>
-      <div class="search-wrap">
-        <input
-          id="itemSearch"
-          type="text"
-          inputmode="search"
-          autocomplete="off"
-          placeholder="e.g. TES…"
-          aria-autocomplete="list"
-          aria-controls="itemList"
-          aria-expanded="false"
-        />
-        <ul id="itemList" class="results" role="listbox" aria-label="Matching items"></ul>
-      </div>
-      <div id="itemSearchStatus" class="search-status" role="status" aria-live="polite"></div>
+      <select id="itemSelect" name="itemSelect" aria-describedby="itemStatus">
+        <option value="">Loading items…</option>
+      </select>
+      <div id="itemStatus" class="item-status" role="status" aria-live="polite"></div>
 
       <p class="divider">Or paste Id</p>
       <label for="itemIdPaste">Item Salesforce Id</label>
@@ -178,7 +132,7 @@
         autocomplete="off"
         spellcheck="false"
       />
-      <p class="hint">Use this if search fails or you already know the Item record Id from Salesforce.</p>
+      <p class="hint">Overrides the dropdown when valid.</p>
 
       <input type="hidden" name="itemId" id="itemId" />
       <div id="pickedLine" class="picked err" role="status">No item selected.</div>
@@ -205,25 +159,20 @@
     <script>
       (function () {
         const form = document.getElementById("f");
-        const searchInput = document.getElementById("itemSearch");
+        const itemSelect = document.getElementById("itemSelect");
         const itemIdPaste = document.getElementById("itemIdPaste");
         const itemIdInput = document.getElementById("itemId");
-        const listEl = document.getElementById("itemList");
         const pickedLine = document.getElementById("pickedLine");
-        const searchStatus = document.getElementById("itemSearchStatus");
+        const itemStatus = document.getElementById("itemStatus");
         const out = document.getElementById("out");
-
-        let debounceTimer;
-        let lastController;
-        let lastRecords = [];
 
         function isValidSfId(s) {
           return /^[a-zA-Z0-9]{15}([a-zA-Z0-9]{3})?$/.test(String(s || "").trim());
         }
 
-        function setSearchStatus(kind, text) {
-          searchStatus.className = "search-status" + (kind ? " " + kind : "");
-          searchStatus.textContent = text || "";
+        function setItemStatus(kind, text) {
+          itemStatus.className = "item-status" + (kind ? " " + kind : "");
+          itemStatus.textContent = text || "";
         }
 
         function setPicked(id, label) {
@@ -237,52 +186,31 @@
           }
         }
 
-        function clearSearchSelection() {
-          setPicked("", "");
+        function syncFromSelect() {
+          const id = itemSelect.value.trim();
           itemIdPaste.value = "";
-        }
-
-        function closeList() {
-          listEl.classList.remove("open");
-          listEl.innerHTML = "";
-          searchInput.setAttribute("aria-expanded", "false");
-          lastRecords = [];
-        }
-
-        function openList() {
-          listEl.classList.add("open");
-          searchInput.setAttribute("aria-expanded", "true");
-        }
-
-        function applyPasteId() {
-          const raw = itemIdPaste.value.trim();
-          if (!raw) {
-            if (!searchInput.value.trim()) setPicked("", "");
+          if (!id) {
+            setPicked("", "");
             return;
           }
-          if (isValidSfId(raw)) {
-            searchInput.value = "";
-            closeList();
-            setPicked(raw, "Pasted Id");
-            setSearchStatus("", "");
-          } else {
-            setPicked("", "");
-            pickedLine.textContent = "Id must be 15 or 18 alphanumeric characters.";
-            pickedLine.classList.add("err");
-          }
+          const opt = itemSelect.options[itemSelect.selectedIndex];
+          const label = opt ? opt.textContent : id;
+          setPicked(id, label);
+          setItemStatus("", "");
         }
+
+        itemSelect.addEventListener("change", syncFromSelect);
 
         itemIdPaste.addEventListener("input", () => {
           const raw = itemIdPaste.value.trim();
           if (!raw) {
-            setPicked("", "");
+            syncFromSelect();
             return;
           }
           if (isValidSfId(raw)) {
-            searchInput.value = "";
-            closeList();
+            itemSelect.value = "";
             setPicked(raw, "Pasted Id");
-            setSearchStatus("", "");
+            setItemStatus("", "");
           } else {
             setPicked("", "");
             pickedLine.textContent = "No item selected.";
@@ -290,102 +218,61 @@
           }
         });
 
-        async function runSearch(q) {
-          if (lastController) lastController.abort();
-          lastController = new AbortController();
-          const url =
-            "/.netlify/functions/search-items?q=" + encodeURIComponent(q) + "&limit=25";
-          const r = await fetch(url, { signal: lastController.signal });
+        async function loadAllItems() {
+          setItemStatus("loading", "Loading items from Salesforce…");
+          itemSelect.innerHTML = "";
+          const optWait = document.createElement("option");
+          optWait.value = "";
+          optWait.textContent = "Loading…";
+          itemSelect.appendChild(optWait);
+
+          const url = "/.netlify/functions/search-items?q=&limit=2000";
+          const r = await fetch(url);
           const text = await r.text();
           let data;
           try {
             data = JSON.parse(text);
           } catch {
-            throw new Error("Bad response (not JSON). Is the function deployed? " + text.slice(0, 120));
+            throw new Error("Bad response (not JSON). " + text.slice(0, 160));
           }
           if (!r.ok) {
-            const detail =
-              data.details != null ? "\n" + JSON.stringify(data.details).slice(0, 400) : "";
-            throw new Error((data.error || "Search failed") + detail);
+            console.error("search-items", r.status, data);
+            const parts = [data.error || "Load failed (" + r.status + ")"];
+            if (data.hint) parts.push(data.hint);
+            if (data.details != null) parts.push(JSON.stringify(data.details).slice(0, 600));
+            throw new Error(parts.join("\n"));
           }
-          return data.records || [];
-        }
 
-        function pickRecord(row) {
-          itemIdPaste.value = "";
-          setPicked(row.id, row.name);
-          searchInput.value = row.name;
-          closeList();
-          setSearchStatus("", "");
-          searchInput.focus();
-        }
+          const records = Array.isArray(data.records) ? data.records : [];
+          itemSelect.innerHTML = "";
+          const placeholder = document.createElement("option");
+          placeholder.value = "";
+          placeholder.textContent = records.length ? "Choose an item…" : "No items returned";
+          itemSelect.appendChild(placeholder);
 
-        function renderResults(records) {
-          lastRecords = records;
-          listEl.innerHTML = "";
-          if (!records.length) {
-            const li = document.createElement("li");
-            li.textContent = "No matches — check spelling or paste an Item Id below.";
-            li.style.padding = "0.5rem 0.6rem";
-            li.style.fontSize = "0.9rem";
-            listEl.appendChild(li);
-            openList();
-            return;
-          }
           records.forEach((row) => {
-            const li = document.createElement("li");
-            li.setAttribute("role", "presentation");
-            const btn = document.createElement("button");
-            btn.type = "button";
-            btn.setAttribute("role", "option");
-            btn.textContent = row.name + "  ·  " + row.id;
-            btn.addEventListener("mousedown", (ev) => {
-              ev.preventDefault();
-            });
-            btn.addEventListener("click", (ev) => {
-              ev.stopPropagation();
-              pickRecord(row);
-            });
-            li.appendChild(btn);
-            listEl.appendChild(li);
+            const o = document.createElement("option");
+            o.value = row.id;
+            o.textContent = (row.name || row.id) + "  ·  " + row.id;
+            itemSelect.appendChild(o);
           });
-          openList();
+
+          setPicked("", "");
+          setItemStatus(
+            "",
+            records.length ? records.length + " item(s) loaded." : "No rows — check object name (SF_ITEM_OBJECT) and permissions."
+          );
         }
 
-        searchInput.addEventListener("input", () => {
-          clearSearchSelection();
-          clearTimeout(debounceTimer);
-          const q = searchInput.value.trim();
-          if (q.length < 2) {
-            closeList();
-            setSearchStatus("", q.length ? "Type one more character…" : "");
-            return;
-          }
-          setSearchStatus("loading", "Searching…");
-          debounceTimer = setTimeout(async () => {
-            try {
-              const recs = await runSearch(q);
-              setSearchStatus("", "");
-              renderResults(recs);
-            } catch (e) {
-              if (e.name === "AbortError") return;
-              closeList();
-              setSearchStatus("error", String(e.message || e));
-            }
-          }, 300);
-        });
-
-        searchInput.addEventListener("keydown", (ev) => {
-          if (ev.key === "Enter") {
-            if (lastRecords.length > 0 && listEl.classList.contains("open")) {
-              ev.preventDefault();
-              pickRecord(lastRecords[0]);
-            }
-          }
-        });
-
-        document.addEventListener("click", (e) => {
-          if (!form.contains(e.target)) closeList();
+        window.addEventListener("DOMContentLoaded", () => {
+          loadAllItems().catch((e) => {
+            itemSelect.innerHTML = "";
+            const o = document.createElement("option");
+            o.value = "";
+            o.textContent = "Could not load items";
+            itemSelect.appendChild(o);
+            setItemStatus("error", String(e.message || e));
+          });
         });
 
         form.addEventListener("submit", async (e) => {
@@ -395,6 +282,8 @@
 
           if (itemIdPaste.value.trim() && isValidSfId(itemIdPaste.value.trim())) {
             itemIdInput.value = itemIdPaste.value.trim();
+          } else {
+            syncFromSelect();
           }
 
           const fd = new FormData(form);
@@ -410,8 +299,7 @@
 
           if (!payload.itemId) {
             out.classList.add("err");
-            out.textContent =
-              "Select an item: click a row under the search, or paste a valid Item Id (15/18 chars).";
+            out.textContent = "Choose an item in the list or paste a valid Item Id.";
             return;
           }
 
@@ -426,12 +314,11 @@
               out.classList.add("ok");
               out.textContent = "Created record Id: " + (data.id || "—");
               form.reset();
-              itemIdInput.value = "";
-              searchInput.value = "";
               itemIdPaste.value = "";
-              clearSearchSelection();
-              closeList();
-              setSearchStatus("", "");
+              itemSelect.selectedIndex = 0;
+              setPicked("", "");
+              setItemStatus("", "");
+              loadAllItems().catch(() => {});
             } else {
               out.classList.add("err");
               out.textContent = data.error || JSON.stringify(data);

@@ -64,10 +64,19 @@ function corsHeaders(event) {
 }
 
 function json(statusCode, event, bodyObj, extraHeaders = {}) {
+  let body;
+  try {
+    body = JSON.stringify(bodyObj);
+  } catch {
+    body = JSON.stringify({
+      error: "Internal: could not serialize error response",
+      message: String(bodyObj && bodyObj.error),
+    });
+  }
   return {
     statusCode,
     headers: { ...corsHeaders(event), ...extraHeaders },
-    body: JSON.stringify(bodyObj),
+    body,
   };
 }
 

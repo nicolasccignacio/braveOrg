@@ -35,18 +35,28 @@ const { URL } = require("url");
 function httpsRequest(url, options, body) {
   return new Promise((resolve, reject) => {
     const u = new URL(url);
+    const headers = {
+      // Salesforce often gzip; Node https does not decompress — force plain JSON/text.
+      "Accept-Encoding": "identity",
+      ...(options.headers || {}),
+    };
     const req = https.request(
       {
         hostname: u.hostname,
         path: u.pathname + u.search,
         method: options.method || "GET",
-        headers: options.headers || {},
+        headers,
       },
       (res) => {
-        let data = "";
-        res.on("data", (c) => (data += c));
+        const chunks = [];
+        res.on("data", (c) => chunks.push(c));
         res.on("end", () => {
-          resolve({ status: res.statusCode, headers: res.headers, body: data });
+          const buf = Buffer.concat(chunks);
+          resolve({
+            status: res.statusCode,
+            headers: res.headers,
+            body: buf.toString("utf8"),
+          });
         });
       }
     );
