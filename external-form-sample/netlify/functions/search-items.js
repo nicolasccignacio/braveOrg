@@ -1,6 +1,6 @@
 /**
  * Item list / search: SOQL on SF_ITEM_OBJECT (default Item__c).
- * Empty q: list up to 2000 rows (page load). With q: name LIKE, up to 50 rows.
+ * Empty q: list up to 2000 rows (page load). With q: name LIKE, up to MAX_SEARCH rows.
  */
 
 const { sfRestRequest, escapeSoqlString } = require("./lib/sf-client");
@@ -8,7 +8,8 @@ const { itemObjectApiName } = require("./lib/sf-objects");
 const { clientIp, allowRequest, json, corsHeaders } = require("./lib/http-helpers");
 
 const MAX_LIST = 2000;
-const MAX_SEARCH = 50;
+/** With a search term, allow more rows for autocomplete-style UIs. */
+const MAX_SEARCH = 150;
 
 function buildQuery(term, limitParam) {
   const objectName = itemObjectApiName();
@@ -16,7 +17,7 @@ function buildQuery(term, limitParam) {
   const parsed = parseInt(limitParam, 10);
   const hasFilter = !!raw;
   const maxLim = hasFilter ? MAX_SEARCH : MAX_LIST;
-  const defaultLim = hasFilter ? 20 : MAX_LIST;
+  const defaultLim = hasFilter ? 50 : MAX_LIST;
   const lim = Math.min(
     Math.max(Number.isFinite(parsed) && parsed > 0 ? parsed : defaultLim, 1),
     maxLim

@@ -119,6 +119,47 @@
         white-space: pre-wrap;
         word-break: break-word;
       }
+      .item-combobox {
+        position: relative;
+        margin-top: 0.2rem;
+      }
+      .item-combobox input[type="text"] {
+        margin-top: 0;
+      }
+      .item-listbox {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        position: absolute;
+        left: 0;
+        right: 0;
+        max-height: 14rem;
+        overflow-y: auto;
+        z-index: 20;
+        background: canvas;
+        color: canvastext;
+        border: 1px solid rgba(127, 127, 127, 0.45);
+        border-radius: 4px;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+      }
+      .item-listbox[hidden] {
+        display: none !important;
+      }
+      .item-listbox li[role="option"] {
+        margin: 0;
+        padding: 0.4rem 0.55rem;
+        cursor: pointer;
+      }
+      .item-listbox li[role="option"][aria-selected="true"],
+      .item-listbox li[role="option"]:hover {
+        background: rgba(127, 127, 127, 0.15);
+      }
+      .item-listbox .item-list-hint {
+        cursor: default;
+        padding: 0.4rem 0.55rem;
+        font-size: 0.85rem;
+        opacity: 0.85;
+      }
       button[type="submit"] {
         margin-top: 1.25rem;
         padding: 0.55rem 1.1rem;
@@ -248,7 +289,7 @@
       <input type="text" name="website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true" />
 
       <div class="item-field-header">
-        <label for="itemSelect">Item</label>
+        <label for="itemSearch">Item</label>
         <button
           type="button"
           id="btnToggleQuickItem"
@@ -273,9 +314,21 @@
         </div>
         <p id="quickItemMsg" class="quick-item-msg" role="status" aria-live="polite"></p>
       </div>
-      <select id="itemSelect" name="itemSelect" aria-describedby="itemStatus">
-        <option value="">Loading items…</option>
-      </select>
+      <div class="item-combobox" id="itemCombobox">
+        <input
+          type="text"
+          id="itemSearch"
+          autocomplete="off"
+          role="combobox"
+          aria-expanded="false"
+          aria-controls="itemListbox"
+          aria-autocomplete="list"
+          aria-describedby="itemStatus"
+          placeholder="Loading items…"
+          disabled
+        />
+        <ul class="item-listbox" id="itemListbox" role="listbox" aria-label="Items" hidden></ul>
+      </div>
       <div id="itemStatus" class="item-status" role="status" aria-live="polite"></div>
 
       <input type="hidden" name="itemId" id="itemId" />
@@ -346,7 +399,8 @@
     <script>
       (function () {
         const form = document.getElementById("f");
-        const itemSelect = document.getElementById("itemSelect");
+        const itemSearch = document.getElementById("itemSearch");
+        const itemListbox = document.getElementById("itemListbox");
         const itemIdInput = document.getElementById("itemId");
         const itemStatus = document.getElementById("itemStatus");
         const out = document.getElementById("out");
@@ -385,21 +439,239 @@
           itemIdInput.value = id || "";
         }
 
-        function syncFromSelect() {
-          const id = itemSelect.value.trim();
-          setItemId(id);
-          if (id) clearItemStatus();
+        /** Cached items from initial load; server search merges in for names past the preload cap. */
+        let itemsCache = [];
+        let pickerSelectedId = null;
+        let pickerSelectedLabel = "";
+        let listEntries = [];
+        let activeListIndex = -1;
+        let remoteSearchTimer = null;
+        let remoteSearchSeq = 0;
+        let blurCloseTimer = null;
+
+        const MAX_DROPDOWN_LOCAL = 100;
+        const INITIAL_EMPTY_SHOW = 80;
+        const MIN_REMOTE_CHARS = 2;
+
+        function rowToItem(row) {
+          const nm = row.name != null ? String(row.name).trim() : "";
+          return { id: row.id, label: nm || "Unnamed item" };
         }
 
-        itemSelect.addEventListener("change", syncFromSelect);
+        function mergeItemsIntoCache(newItems) {
+          const byId = new Map(itemsCache.map((i) => [i.id, i]));
+          newItems.forEach((i) => byId.set(i.id, i));
+          itemsCache = Array.from(byId.values());
+        }
+
+        function sortedCache() {
+          return [...itemsCache].sort((a, b) =>
+            a.label.localeCompare(b.label, undefined, { sensitivity: "base" })
+          );
+        }
+
+        function localMatches(query) {
+          const sorted = sortedCache();
+          const t = String(query || "").trim().toLowerCase();
+          if (!t) return sorted.slice(0, INITIAL_EMPTY_SHOW);
+          return sorted
+            .filter((it) => it.label.toLowerCase().includes(t))
+            .slice(0, MAX_DROPDOWN_LOCAL);
+        }
+
+        function closeListbox() {
+          itemListbox.hidden = true;
+          itemSearch.setAttribute("aria-expanded", "false");
+          activeListIndex = -1;
+          itemSearch.removeAttribute("aria-activedescendant");
+        }
+
+        function openListbox() {
+          itemListbox.hidden = false;
+          itemSearch.setAttribute("aria-expanded", "true");
+        }
+
+        function setListActive(idx) {
+          const opts = itemListbox.querySelectorAll('li[role="option"]');
+          if (!opts.length) return;
+          activeListIndex = Math.max(0, Math.min(idx, opts.length - 1));
+          opts.forEach((el, i) => {
+            el.setAttribute("aria-selected", i === activeListIndex ? "true" : "false");
+          });
+          const cur = opts[activeListIndex];
+          itemSearch.setAttribute("aria-activedescendant", cur.id);
+          cur.scrollIntoView({ block: "nearest" });
+        }
+
+        function renderListbox(entries, hintWhenEmpty) {
+          listEntries = entries.slice();
+          activeListIndex = -1;
+          itemSearch.removeAttribute("aria-activedescendant");
+          itemListbox.innerHTML = "";
+          entries.forEach((it, i) => {
+            const li = document.createElement("li");
+            li.id = "item-opt-" + i;
+            li.setAttribute("role", "option");
+            li.dataset.id = it.id;
+            li.dataset.label = it.label;
+            li.textContent = it.label;
+            li.addEventListener("click", () => pickItem(it.id, it.label));
+            itemListbox.appendChild(li);
+          });
+          if (entries.length === 0) {
+            const li = document.createElement("li");
+            li.className = "item-list-hint";
+            li.setAttribute("role", "presentation");
+            li.textContent = hintWhenEmpty || "No matching items.";
+            itemListbox.appendChild(li);
+          }
+        }
+
+        function pickItem(id, label) {
+          setItemId(id);
+          itemSearch.value = label;
+          pickerSelectedId = id;
+          pickerSelectedLabel = label;
+          closeListbox();
+          clearItemStatus();
+        }
+
+        function clearItemPicker() {
+          pickerSelectedId = null;
+          pickerSelectedLabel = "";
+          setItemId("");
+          itemSearch.value = "";
+          closeListbox();
+        }
+
+        function updateItemListbox() {
+          clearTimeout(remoteSearchTimer);
+          const q = itemSearch.value;
+
+          const local = localMatches(q);
+          if (local.length > 0) {
+            renderListbox(local);
+            openListbox();
+            return;
+          }
+
+          if (!String(q).trim()) {
+            renderListbox(
+              localMatches(""),
+              itemsCache.length ? "" : "No items loaded."
+            );
+            openListbox();
+            return;
+          }
+
+          if (String(q).trim().length < MIN_REMOTE_CHARS) {
+            renderListbox(
+              [],
+              "Type at least " +
+                MIN_REMOTE_CHARS +
+                " characters to search the full catalog (first " +
+                INITIAL_EMPTY_SHOW +
+                " items show when the field is empty)."
+            );
+            openListbox();
+            return;
+          }
+
+          renderListbox([], "Searching…");
+          openListbox();
+          remoteSearchTimer = setTimeout(() => remoteItemSearch(String(q).trim()), 260);
+        }
+
+        async function remoteItemSearch(q) {
+          const seq = ++remoteSearchSeq;
+          try {
+            const url =
+              "/.netlify/functions/search-items?q=" + encodeURIComponent(q) + "&limit=150";
+            const r = await fetch(url);
+            const data = await r.json().catch(() => ({}));
+            if (seq !== remoteSearchSeq) return;
+            if (!r.ok) {
+              renderListbox([], data.error || "Search failed.");
+              openListbox();
+              return;
+            }
+            const found = (Array.isArray(data.records) ? data.records : []).map(rowToItem);
+            mergeItemsIntoCache(found);
+            renderListbox(found, found.length ? "" : "No matching items.");
+            openListbox();
+          } catch (e) {
+            if (seq !== remoteSearchSeq) return;
+            renderListbox([], String(e.message || e));
+            openListbox();
+          }
+        }
+
+        itemListbox.addEventListener("mousedown", (e) => {
+          if (e.target.closest('li[role="option"]')) e.preventDefault();
+        });
+
+        itemSearch.addEventListener("input", () => {
+          if (pickerSelectedId && itemSearch.value !== pickerSelectedLabel) {
+            pickerSelectedId = null;
+            pickerSelectedLabel = "";
+            setItemId("");
+          }
+          updateItemListbox();
+        });
+
+        itemSearch.addEventListener("focus", () => {
+          clearTimeout(blurCloseTimer);
+          if (!itemSearch.disabled) updateItemListbox();
+        });
+
+        itemSearch.addEventListener("blur", () => {
+          blurCloseTimer = setTimeout(() => closeListbox(), 200);
+        });
+
+        itemSearch.addEventListener("keydown", (ev) => {
+          const optCount = itemListbox.querySelectorAll('li[role="option"]').length;
+          if (!itemListbox.hidden && ev.key === "Escape") {
+            closeListbox();
+            ev.preventDefault();
+            return;
+          }
+          if ((ev.key === "ArrowDown" || ev.key === "ArrowUp") && !itemSearch.disabled) {
+            if (itemListbox.hidden) {
+              updateItemListbox();
+              ev.preventDefault();
+              queueMicrotask(() => {
+                const n = itemListbox.querySelectorAll('li[role="option"]').length;
+                if (!n) return;
+                if (ev.key === "ArrowDown") setListActive(0);
+                else setListActive(n - 1);
+              });
+              return;
+            }
+            ev.preventDefault();
+            if (ev.key === "ArrowDown") {
+              setListActive(activeListIndex < 0 ? 0 : activeListIndex + 1);
+            } else {
+              const n = optCount;
+              setListActive(activeListIndex <= 0 ? n - 1 : activeListIndex - 1);
+            }
+            return;
+          }
+          if (ev.key === "Enter" && !itemListbox.hidden) {
+            const opts = itemListbox.querySelectorAll('li[role="option"]');
+            if (activeListIndex >= 0 && opts[activeListIndex]) {
+              const li = opts[activeListIndex];
+              pickItem(li.dataset.id, li.dataset.label);
+              ev.preventDefault();
+            }
+          }
+        });
 
         async function loadAllItems(selectIdAfter) {
           clearItemStatus();
-          itemSelect.innerHTML = "";
-          const optWait = document.createElement("option");
-          optWait.value = "";
-          optWait.textContent = "Loading…";
-          itemSelect.appendChild(optWait);
+          itemsCache = [];
+          itemSearch.disabled = true;
+          itemSearch.placeholder = "Loading items…";
+          closeListbox();
 
           const url = "/.netlify/functions/search-items?q=&limit=2000";
           const r = await fetch(url);
@@ -419,24 +691,16 @@
           }
 
           const records = Array.isArray(data.records) ? data.records : [];
-          itemSelect.innerHTML = "";
-          const placeholder = document.createElement("option");
-          placeholder.value = "";
-          placeholder.textContent = records.length ? "Choose an item…" : "No items returned";
-          itemSelect.appendChild(placeholder);
+          itemsCache = records.map(rowToItem);
 
-          records.forEach((row) => {
-            const o = document.createElement("option");
-            o.value = row.id;
-            const nm = row.name != null ? String(row.name).trim() : "";
-            o.textContent = nm || "Unnamed item";
-            itemSelect.appendChild(o);
-          });
+          itemSearch.disabled = false;
+          itemSearch.placeholder = "Type to search items…";
 
-          setItemId("");
-          if (selectIdAfter && records.some((row) => row.id === selectIdAfter)) {
-            itemSelect.value = selectIdAfter;
-            syncFromSelect();
+          if (selectIdAfter && itemsCache.some((row) => row.id === selectIdAfter)) {
+            const row = itemsCache.find((x) => x.id === selectIdAfter);
+            pickItem(selectIdAfter, row.label);
+          } else {
+            clearItemPicker();
           }
         }
 
@@ -486,10 +750,12 @@
           ph.textContent = "Choose…";
           editItemSelect.appendChild(ph);
           const seen = new Set();
-          Array.from(itemSelect.options).forEach((opt) => {
-            if (!opt.value) return;
-            seen.add(opt.value);
-            editItemSelect.appendChild(opt.cloneNode(true));
+          sortedCache().forEach(({ id, label }) => {
+            const o = document.createElement("option");
+            o.value = id;
+            o.textContent = label;
+            editItemSelect.appendChild(o);
+            seen.add(id);
           });
           if (selectedId && !seen.has(selectedId)) {
             const o = document.createElement("option");
@@ -712,11 +978,9 @@
           setFormDefaults();
           loadAllItems()
             .catch((e) => {
-              itemSelect.innerHTML = "";
-              const o = document.createElement("option");
-              o.value = "";
-              o.textContent = "Could not load items";
-              itemSelect.appendChild(o);
+              itemsCache = [];
+              itemSearch.disabled = true;
+              itemSearch.placeholder = "Could not load items";
               setItemStatusError(String(e.message || e));
             });
           loadHistory();
@@ -726,7 +990,6 @@
           e.preventDefault();
           out.innerHTML = "";
           out.className = "msg";
-          syncFromSelect();
 
           const fd = new FormData(form);
           const payload = {
@@ -757,8 +1020,7 @@
               out.textContent = "Expense saved.";
               form.reset();
               setFormDefaults();
-              itemSelect.selectedIndex = 0;
-              setItemId("");
+              clearItemPicker();
               clearItemStatus();
               loadAllItems().catch(() => {});
               loadHistory();
