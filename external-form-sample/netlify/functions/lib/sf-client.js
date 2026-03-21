@@ -7,6 +7,8 @@
  *   Env:
  *     SF_CLIENT_ID       Consumer Key from the app (Settings → Consumer Key and Secret)
  *     SF_CLIENT_SECRET   Consumer Secret
+ *     (No SF_USER for this flow — the “run as” user is set on the External Client App *access policy* in Setup.)
+ *
  *     SF_LOGIN_URL       Fallback only if SF_INSTANCE_URL unset (prod/sandbox login host)
  *     SF_INSTANCE_URL    Required for most orgs: My Domain API URL, e.g.
  *                        https://MyDomain.my.salesforce.com
@@ -17,9 +19,10 @@
  *     (omit SF_TOKEN_URL to derive from SF_INSTANCE_URL)
  *     SF_AUTH_MODE         client_credentials | jwt | auto (default auto: uses CC if SF_CLIENT_SECRET set)
  *
- * Optional legacy: Connected App JWT Bearer (no client secret)
- *     SF_CLIENT_ID, SF_USER, SF_PRIVATE_KEY, SF_LOGIN_URL
- *     SF_INSTANCE_URL required if token response has no instance_url
+ * JWT Bearer (set SF_AUTH_MODE=jwt, or omit SF_CLIENT_SECRET so auto mode picks JWT):
+ *     SF_CLIENT_ID, SF_USER  (Salesforce username, e.g. integration.user@company.com)
+ *     SF_PRIVATE_KEY   PEM private key matching the app’s certificate
+ *     SF_INSTANCE_URL  if token response has no instance_url
  *
  *   SF_API_VERSION (optional, default 60.0)
  *   ALLOWED_ORIGIN — see lib/http-helpers.js
@@ -161,7 +164,12 @@ async function fetchToken(bodyParams) {
     }
     throw new Error(`Token error ${res.status}: ${res.body}${extra ? " — " + extra : ""}`);
   }
-  const json = JSON.parse(res.body);
+  let json;
+  try {
+    json = JSON.parse(res.body);
+  } catch {
+    throw new Error(`Token response was not JSON: ${String(res.body).slice(0, 300)}`);
+  }
   if (!json.access_token) {
     throw new Error("No access_token in response");
   }
@@ -183,6 +191,7 @@ async function getAccessToken() {
     if (!clientId || !clientSecret) {
       throw new Error("Client Credentials: set SF_CLIENT_ID and SF_CLIENT_SECRET (External Client App)");
     }
+    // Run-as user is configured on the External Client App policy in Salesforce, not via SF_USER.
     json = await fetchToken({
       grant_type: "client_credentials",
       client_id: clientId,
@@ -207,11 +216,12 @@ async function getAccessToken() {
 }
 
 function instanceUrl() {
-  const envUrl = (process.env.SF_INSTANCE_URL || "").replace(/\/$/, "");
+  const envUrl = (process.env.SF_INSTANCE_URL || "").trim().replace(/\/$/, "");
   if (envUrl) return envUrl;
   if (tokenCache.instanceFromToken) return tokenCache.instanceFromToken;
   throw new Error(
-    "SF_INSTANCE_URL not set and token response had no instance_url; set SF_INSTANCE_URL to your org REST host (e.g. https://mydomain.my.salesforce.com)"
+    "No REST host: set SF_INSTANCE_URL to the same host as Postman (e.g. https://brave-shark-….trailblaze.my.salesforce.com). " +
+      "The token response did not include instance_url."
   );
 }
 

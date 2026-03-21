@@ -29,38 +29,39 @@ function buildQuery(term, limit) {
 }
 
 exports.handler = async (event) => {
-  if (event.httpMethod === "OPTIONS") {
-    return { statusCode: 204, headers: corsHeaders(event), body: "" };
-  }
-
-  if (event.httpMethod !== "GET" && event.httpMethod !== "POST") {
-    return json(405, event, { error: "Method not allowed" });
-  }
-
-  const ip = clientIp(event);
-  if (!allowRequest(ip, "search")) {
-    return json(429, event, { error: "Too many requests. Try again in a minute." });
-  }
-
-  let q = "";
-  let limit = 20;
-  if (event.httpMethod === "GET") {
-    const sp = event.queryStringParameters || {};
-    q = sp.q || "";
-    limit = sp.limit || 20;
-  } else {
-    try {
-      const body = JSON.parse(event.body || "{}");
-      q = body.q || "";
-      limit = body.limit || 20;
-    } catch {
-      return json(400, event, { error: "Invalid JSON" });
-    }
-  }
-
-  const soql = buildQuery(q, limit);
-  const enc = encodeURIComponent(soql);
   try {
+    if (event.httpMethod === "OPTIONS") {
+      return { statusCode: 204, headers: corsHeaders(event), body: "" };
+    }
+
+    if (event.httpMethod !== "GET" && event.httpMethod !== "POST") {
+      return json(405, event, { error: "Method not allowed" });
+    }
+
+    const ip = clientIp(event);
+    if (!allowRequest(ip, "search")) {
+      return json(429, event, { error: "Too many requests. Try again in a minute." });
+    }
+
+    let q = "";
+    let limit = 20;
+    if (event.httpMethod === "GET") {
+      const sp = event.queryStringParameters || {};
+      q = sp.q || "";
+      limit = sp.limit || 20;
+    } else {
+      try {
+        const body = JSON.parse(event.body || "{}");
+        q = body.q || "";
+        limit = body.limit || 20;
+      } catch {
+        return json(400, event, { error: "Invalid JSON" });
+      }
+    }
+
+    const soql = buildQuery(q, limit);
+    const enc = encodeURIComponent(soql);
+
     const res = await sfRestRequest("GET", `/query?q=${enc}`);
     let data;
     try {
@@ -77,13 +78,18 @@ exports.handler = async (event) => {
         details: data,
       });
     }
-    const records = (data.records || []).map((r) => ({
+    const rows = Array.isArray(data.records) ? data.records : [];
+    const records = rows.map((r) => ({
       id: r.Id,
       name: r.Name,
     }));
     return json(200, event, { records });
   } catch (e) {
-    console.error(e);
-    return json(500, event, { error: e.message || "Server error" });
+    console.error("search-items", e);
+    return json(500, event, {
+      error: e.message || "Server error",
+      hint:
+        "Check Netlify env: SF_CLIENT_ID, SF_CLIENT_SECRET, SF_INSTANCE_URL (or SF_TOKEN_URL). Open function response JSON in browser DevTools → Network.",
+    });
   }
 };

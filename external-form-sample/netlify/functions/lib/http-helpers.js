@@ -7,10 +7,15 @@ const RATE_MAX_SEARCH = 40;
 const RATE_MAX_SUBMIT = 15;
 const hitBuckets = new Map();
 
+function safeHeaders(event) {
+  return (event && event.headers) || {};
+}
+
 function clientIp(event) {
-  const xff = event.headers["x-forwarded-for"] || event.headers["X-Forwarded-For"];
+  const hdr = safeHeaders(event);
+  const xff = hdr["x-forwarded-for"] || hdr["X-Forwarded-For"];
   if (xff) return String(xff).split(",")[0].trim();
-  return event.headers["client-ip"] || event.headers["Client-Ip"] || "unknown";
+  return hdr["client-ip"] || hdr["Client-Ip"] || "unknown";
 }
 
 function allowRequest(ip, kind) {
@@ -33,7 +38,8 @@ function allowRequest(ip, kind) {
 
 function corsHeaders(event) {
   const allowed = process.env.ALLOWED_ORIGIN;
-  const origin = event.headers.origin || event.headers.Origin;
+  const hdr = safeHeaders(event);
+  const origin = hdr.origin || hdr.Origin;
   let allow = false;
   let header = "";
   if (!allowed || allowed === "*") {
@@ -70,4 +76,5 @@ module.exports = {
   allowRequest,
   corsHeaders,
   json,
+  safeHeaders,
 };
