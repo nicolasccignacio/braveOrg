@@ -7,10 +7,14 @@
  *   Env:
  *     SF_CLIENT_ID       Consumer Key from the app (Settings → Consumer Key and Secret)
  *     SF_CLIENT_SECRET   Consumer Secret
- *     SF_LOGIN_URL       https://login.salesforce.com or https://test.salesforce.com (sandbox)
+ *     SF_LOGIN_URL       Fallback only if SF_INSTANCE_URL unset (prod/sandbox login host)
+ *     SF_INSTANCE_URL    Required for most orgs: My Domain API URL, e.g.
+ *                        https://MyDomain.my.salesforce.com
+ *                        (Setup → My Domain → “Current My Domain URL” — use the .my.salesforce.com form.)
+ *                        Token requests use https://<that-host>/services/oauth2/token automatically.
  *   Optional:
- *     SF_INSTANCE_URL    REST host; if omitted, uses instance_url from the token response when present
- *     SF_TOKEN_URL         Override token endpoint (default: SF_LOGIN_URL + /services/oauth2/token)
+ *     SF_TOKEN_URL       Full token URL override if Salesforce docs require a different host
+ *     (omit SF_TOKEN_URL to derive from SF_INSTANCE_URL)
  *     SF_AUTH_MODE         client_credentials | jwt | auto (default auto: uses CC if SF_CLIENT_SECRET set)
  *
  * Optional legacy: Connected App JWT Bearer (no client secret)
@@ -57,8 +61,17 @@ function base64url(input) {
     .replace(/\//g, "_");
 }
 
+/** JWT `aud` must match the OAuth issuer host you POST to (same origin as token endpoint). */
+function jwtAudienceOrigin() {
+  try {
+    return new URL(tokenEndpoint()).origin;
+  } catch {
+    return (process.env.SF_LOGIN_URL || "https://login.salesforce.com").replace(/\/$/, "");
+  }
+}
+
 function buildJwtAssertion() {
-  const loginUrl = (process.env.SF_LOGIN_URL || "https://login.salesforce.com").replace(/\/$/, "");
+  const aud = jwtAudienceOrigin();
   const clientId = process.env.SF_CLIENT_ID;
   const username = process.env.SF_USER;
   let privateKey = process.env.SF_PRIVATE_KEY || "";
@@ -72,7 +85,7 @@ function buildJwtAssertion() {
   const claims = {
     iss: clientId,
     sub: username,
-    aud: loginUrl,
+    aud,
     exp: now + 3 * 60,
   };
 
@@ -95,6 +108,17 @@ let tokenCache = {
 function tokenEndpoint() {
   const custom = (process.env.SF_TOKEN_URL || "").trim();
   if (custom) return custom.replace(/\/$/, "");
+
+  const instance = (process.env.SF_INSTANCE_URL || "").trim().replace(/\/$/, "");
+  if (instance) {
+    try {
+      const u = new URL(instance);
+      return `${u.origin}/services/oauth2/token`;
+    } catch {
+      /* fall through to login host */
+    }
+  }
+
   const loginUrl = (process.env.SF_LOGIN_URL || "https://login.salesforce.com").replace(/\/$/, "");
   return `${loginUrl}/services/oauth2/token`;
 }
@@ -123,7 +147,19 @@ async function fetchToken(bodyParams) {
   );
 
   if (res.status !== 200) {
-    throw new Error(`Token error ${res.status}: ${res.body}`);
+    let extra = "";
+    try {
+      const errBody = JSON.parse(res.body);
+      const desc = String(errBody.error_description || "");
+      if (desc.toLowerCase().includes("not supported on this domain")) {
+        extra =
+          " Fix: set Netlify SF_INSTANCE_URL to your org My Domain (https://YourDomain.my.salesforce.com). " +
+          "Token calls then go to that host’s /services/oauth2/token. Or set SF_TOKEN_URL to that full token URL.";
+      }
+    } catch {
+      /* ignore */
+    }
+    throw new Error(`Token error ${res.status}: ${res.body}${extra ? " — " + extra : ""}`);
   }
   const json = JSON.parse(res.body);
   if (!json.access_token) {
