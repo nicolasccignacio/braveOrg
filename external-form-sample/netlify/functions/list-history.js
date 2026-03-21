@@ -26,7 +26,7 @@ exports.handler = async (event) => {
     const lim = Math.min(Math.max(parseInt(sp.limit, 10) || 50, 1), 200);
     const exp = expenseObjectApiName();
 
-    const soql = `SELECT Id, Name, Item__c, Item__r.Name, Price__c, Quantity__c, Expense_Date__c, CreatedDate FROM ${exp} ORDER BY CreatedDate DESC LIMIT ${lim}`;
+    const soql = `SELECT Id, Name, Item__c, Item__r.Name, Price__c, Quantity__c, Expense_Date__c, Cuotas__c, Referencia__c, CreatedDate FROM ${exp} ORDER BY CreatedDate DESC LIMIT ${lim}`;
     const enc = encodeURIComponent(soql);
     const res = await sfRestRequest("GET", `/query?q=${enc}`);
 
@@ -56,6 +56,8 @@ exports.handler = async (event) => {
       price: r.Price__c,
       quantity: r.Quantity__c,
       expenseDate: r.Expense_Date__c,
+      cuotas: r.Cuotas__c,
+      referencia: r.Referencia__c,
       createdDate: r.CreatedDate,
     }));
 

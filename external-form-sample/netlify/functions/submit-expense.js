@@ -6,6 +6,7 @@
  */
 
 const { sfRestRequest, isValidSalesforceId } = require("./lib/sf-client");
+const { expenseObjectApiName } = require("./lib/sf-objects");
 const { clientIp, allowRequest, json, corsHeaders } = require("./lib/http-helpers");
 
 exports.handler = async (event) => {
@@ -61,7 +62,8 @@ exports.handler = async (event) => {
   }
 
   try {
-    const res = await sfRestRequest("POST", "/sobjects/Expense_Item_Price__c", sobject);
+    const exp = expenseObjectApiName();
+    const res = await sfRestRequest("POST", `/sobjects/${exp}`, sobject);
     let data;
     try {
       data = JSON.parse(res.body);

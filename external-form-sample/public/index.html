@@ -25,11 +25,6 @@
         margin-top: 1.75rem;
         margin-bottom: 0.5rem;
       }
-      .sub {
-        font-size: 0.9rem;
-        opacity: 0.85;
-        margin-bottom: 1.25rem;
-      }
       label {
         display: block;
         margin-top: 0.85rem;
@@ -46,35 +41,72 @@
         padding: 0.45rem 0.5rem;
         font: inherit;
       }
-      .hint {
-        font-size: 0.8rem;
-        opacity: 0.88;
-        margin-top: 0.35rem;
-        margin-bottom: 0;
+      .item-field-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        margin-top: 0.85rem;
       }
-      .row-inline {
+      .item-field-header label {
+        margin-top: 0;
+      }
+      .btn-icon-add {
+        flex-shrink: 0;
+        width: 2.1rem;
+        height: 2.1rem;
+        padding: 0;
+        font-size: 1.4rem;
+        line-height: 1;
+        font-weight: 500;
+        border-radius: 6px;
+        border: 1px solid rgba(127, 127, 127, 0.45);
+        background: canvas;
+        color: canvastext;
+        cursor: pointer;
+      }
+      .btn-icon-add:hover,
+      .btn-icon-add:focus {
+        background: rgba(127, 127, 127, 0.12);
+        outline: none;
+      }
+      .btn-icon-add:focus-visible {
+        outline: 2px solid Highlight;
+        outline-offset: 2px;
+      }
+      .quick-item-panel {
+        margin-top: 0.5rem;
+        margin-bottom: 0.25rem;
+      }
+      .quick-item-panel[hidden] {
+        display: none !important;
+      }
+      .quick-item-row {
         display: flex;
         gap: 0.5rem;
-        align-items: flex-end;
+        align-items: center;
         flex-wrap: wrap;
       }
-      .row-inline input[type="text"] {
+      .quick-item-row input[type="text"] {
         flex: 1;
         min-width: 10rem;
-        margin-top: 0.2rem;
+        margin-top: 0;
       }
-      .row-inline button {
+      .quick-item-row button {
         padding: 0.45rem 0.85rem;
         font: inherit;
         cursor: pointer;
         white-space: nowrap;
       }
-      .picked {
-        font-size: 0.85rem;
+      .quick-item-msg {
+        font-size: 0.8rem;
         margin-top: 0.35rem;
+        min-height: 1em;
+      }
+      .quick-item-msg.ok {
         color: seagreen;
       }
-      .picked.err {
+      .quick-item-msg.err {
         color: crimson;
       }
       .item-status {
@@ -139,40 +171,114 @@
         margin-top: 0.35rem;
         color: crimson;
       }
+      .history-actions {
+        white-space: nowrap;
+        text-align: right;
+      }
+      .history-actions .btn-icon-table {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 2rem;
+        height: 2rem;
+        margin: 0 0.1rem;
+        padding: 0;
+        border: none;
+        border-radius: 6px;
+        background: transparent;
+        color: inherit;
+        cursor: pointer;
+        vertical-align: middle;
+      }
+      .history-actions .btn-icon-table:hover {
+        background: rgba(127, 127, 127, 0.15);
+      }
+      .history-actions .btn-icon-table:focus-visible {
+        outline: 2px solid Highlight;
+        outline-offset: 1px;
+      }
+      .history-actions .btn-icon-table.danger:hover {
+        background: rgba(198, 40, 40, 0.15);
+        color: crimson;
+      }
+      .edit-dialog {
+        border: 1px solid rgba(127, 127, 127, 0.45);
+        border-radius: 10px;
+        padding: 1rem 1.1rem;
+        max-width: min(100vw - 2rem, 22rem);
+      }
+      .edit-dialog::backdrop {
+        background: rgba(0, 0, 0, 0.45);
+      }
+      .edit-dialog h3 {
+        margin: 0 0 0.35rem;
+        font-size: 1.1rem;
+      }
+      .edit-meta {
+        font-size: 0.8rem;
+        opacity: 0.85;
+        margin: 0 0 0.75rem;
+        word-break: break-all;
+      }
+      .edit-dialog label {
+        margin-top: 0.65rem;
+      }
+      .edit-dialog-actions {
+        display: flex;
+        gap: 0.5rem;
+        justify-content: flex-end;
+        margin-top: 1rem;
+      }
+      .edit-dialog-actions button {
+        padding: 0.45rem 0.9rem;
+        font: inherit;
+        cursor: pointer;
+      }
+      #editExpenseErr {
+        margin-top: 0.5rem;
+        margin-bottom: 0;
+      }
     </style>
   </head>
   <body>
     <h1>Create expense</h1>
-    <p class="sub">
-      Items and history load when you open the page. New items can be added without leaving Salesforce
-      Setup.
-    </p>
-
-    <h2>New item</h2>
-    <label for="newItemName">Name</label>
-    <div class="row-inline">
-      <input id="newItemName" type="text" placeholder="New item name" autocomplete="off" />
-      <button type="button" id="btnCreateItem">Create item</button>
-    </div>
-    <p id="newItemMsg" class="history-status" role="status" aria-live="polite"></p>
 
     <h2>Expense</h2>
     <form id="f" novalidate>
       <input type="text" name="website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true" />
 
-      <label for="itemSelect">Item</label>
-      <p class="hint">
-        List loads on page open (up to 2000 records). If the list is empty or errors, set Netlify
-        <code>SF_ITEM_OBJECT</code> to your org’s object API name (must exist for the integration
-        user).
-      </p>
+      <div class="item-field-header">
+        <label for="itemSelect">Item</label>
+        <button
+          type="button"
+          id="btnToggleQuickItem"
+          class="btn-icon-add"
+          aria-expanded="false"
+          aria-controls="quickItemPanel"
+          title="Create new item"
+        >
+          +
+        </button>
+      </div>
+      <div id="quickItemPanel" class="quick-item-panel" hidden>
+        <div class="quick-item-row">
+          <input
+            id="quickItemName"
+            type="text"
+            placeholder="New item name"
+            autocomplete="off"
+            aria-label="New item name"
+          />
+          <button type="button" id="btnQuickCreateItem">Add</button>
+        </div>
+        <p id="quickItemMsg" class="quick-item-msg" role="status" aria-live="polite"></p>
+      </div>
       <select id="itemSelect" name="itemSelect" aria-describedby="itemStatus">
         <option value="">Loading items…</option>
       </select>
       <div id="itemStatus" class="item-status" role="status" aria-live="polite"></div>
 
       <input type="hidden" name="itemId" id="itemId" />
-      <div id="pickedLine" class="picked err" role="status">No item selected.</div>
 
       <label for="price">Price</label>
       <input id="price" name="price" type="number" step="0.01" inputmode="decimal" />
@@ -194,7 +300,6 @@
     <div id="out" role="status"></div>
 
     <h2>History</h2>
-    <p class="hint">Recent expense rows (newest first). Uses <code>Expense_Item_Price__c</code> or Netlify <code>SF_EXPENSE_OBJECT</code>.</p>
     <div class="history-wrap">
       <table class="history" aria-label="Expense history">
         <thead>
@@ -204,30 +309,54 @@
             <th>Qty</th>
             <th>Expense date</th>
             <th>Created</th>
+            <th class="history-actions">Actions</th>
           </tr>
         </thead>
         <tbody id="historyBody">
           <tr>
-            <td colspan="5">Loading…</td>
+            <td colspan="6">Loading…</td>
           </tr>
         </tbody>
       </table>
     </div>
     <p id="historyMsg" class="history-status" role="status" aria-live="polite"></p>
 
+    <dialog id="editExpenseDialog" class="edit-dialog" aria-labelledby="editExpenseTitle">
+      <h3 id="editExpenseTitle">Edit expense</h3>
+      <p id="editExpenseMeta" class="edit-meta"></p>
+      <label for="editItemSelect">Item</label>
+      <select id="editItemSelect"></select>
+      <label for="editPrice">Price</label>
+      <input id="editPrice" type="number" step="0.01" inputmode="decimal" />
+      <label for="editQuantity">Quantity</label>
+      <input id="editQuantity" type="number" step="0.01" inputmode="decimal" />
+      <label for="editExpenseDate">Expense date</label>
+      <input id="editExpenseDate" type="date" />
+      <label for="editCuotas">Cuotas</label>
+      <input id="editCuotas" type="number" step="1" inputmode="numeric" />
+      <label for="editReferencia">Referencia</label>
+      <input id="editReferencia" type="text" />
+      <div class="edit-dialog-actions">
+        <button type="button" id="editExpenseCancel">Cancel</button>
+        <button type="button" id="editExpenseSave">Save</button>
+      </div>
+      <p id="editExpenseErr" class="history-status" role="status"></p>
+    </dialog>
+
     <script>
       (function () {
         const form = document.getElementById("f");
         const itemSelect = document.getElementById("itemSelect");
         const itemIdInput = document.getElementById("itemId");
-        const pickedLine = document.getElementById("pickedLine");
         const itemStatus = document.getElementById("itemStatus");
         const out = document.getElementById("out");
         const historyBody = document.getElementById("historyBody");
         const historyMsg = document.getElementById("historyMsg");
-        const newItemName = document.getElementById("newItemName");
-        const btnCreateItem = document.getElementById("btnCreateItem");
-        const newItemMsg = document.getElementById("newItemMsg");
+        const quickItemPanel = document.getElementById("quickItemPanel");
+        const btnToggleQuickItem = document.getElementById("btnToggleQuickItem");
+        const quickItemName = document.getElementById("quickItemName");
+        const btnQuickCreateItem = document.getElementById("btnQuickCreateItem");
+        const quickItemMsg = document.getElementById("quickItemMsg");
 
         function todayLocal() {
           const d = new Date();
@@ -252,27 +381,14 @@
           itemStatus.textContent = "";
         }
 
-        function setPicked(id, label) {
+        function setItemId(id) {
           itemIdInput.value = id || "";
-          if (id) {
-            pickedLine.textContent = "Selected: " + label + " (" + id + ")";
-            pickedLine.classList.remove("err");
-          } else {
-            pickedLine.textContent = "No item selected.";
-            pickedLine.classList.add("err");
-          }
         }
 
         function syncFromSelect() {
           const id = itemSelect.value.trim();
-          if (!id) {
-            setPicked("", "");
-            return;
-          }
-          const opt = itemSelect.options[itemSelect.selectedIndex];
-          const label = opt ? opt.textContent.replace(/\s+·\s+.*$/, "").trim() : id;
-          setPicked(id, label);
-          clearItemStatus();
+          setItemId(id);
+          if (id) clearItemStatus();
         }
 
         itemSelect.addEventListener("change", syncFromSelect);
@@ -312,16 +428,36 @@
           records.forEach((row) => {
             const o = document.createElement("option");
             o.value = row.id;
-            o.textContent = (row.name || row.id) + "  ·  " + row.id;
+            const nm = row.name != null ? String(row.name).trim() : "";
+            o.textContent = nm || "Unnamed item";
             itemSelect.appendChild(o);
           });
 
-          setPicked("", "");
+          setItemId("");
           if (selectIdAfter && records.some((row) => row.id === selectIdAfter)) {
             itemSelect.value = selectIdAfter;
             syncFromSelect();
           }
         }
+
+        const editExpenseDialog = document.getElementById("editExpenseDialog");
+        const editExpenseMeta = document.getElementById("editExpenseMeta");
+        const editItemSelect = document.getElementById("editItemSelect");
+        const editPrice = document.getElementById("editPrice");
+        const editQuantity = document.getElementById("editQuantity");
+        const editExpenseDate = document.getElementById("editExpenseDate");
+        const editCuotas = document.getElementById("editCuotas");
+        const editReferencia = document.getElementById("editReferencia");
+        const editExpenseCancel = document.getElementById("editExpenseCancel");
+        const editExpenseSave = document.getElementById("editExpenseSave");
+        const editExpenseErr = document.getElementById("editExpenseErr");
+
+        let editingRecordId = null;
+
+        const ICON_EDIT =
+          '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
+        const ICON_DELETE =
+          '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>';
 
         function formatDate(s) {
           if (s == null || s === "") return "—";
@@ -334,9 +470,74 @@
           }
         }
 
+        function toDateInputValue(s) {
+          if (s == null || s === "") return "";
+          const str = String(s);
+          if (str.length >= 10 && str[4] === "-") return str.slice(0, 10);
+          const d = new Date(str);
+          if (isNaN(d.getTime())) return "";
+          return d.toISOString().slice(0, 10);
+        }
+
+        function fillEditItemSelect(selectedId, itemLabelFallback) {
+          editItemSelect.innerHTML = "";
+          const ph = document.createElement("option");
+          ph.value = "";
+          ph.textContent = "Choose…";
+          editItemSelect.appendChild(ph);
+          const seen = new Set();
+          Array.from(itemSelect.options).forEach((opt) => {
+            if (!opt.value) return;
+            seen.add(opt.value);
+            editItemSelect.appendChild(opt.cloneNode(true));
+          });
+          if (selectedId && !seen.has(selectedId)) {
+            const o = document.createElement("option");
+            o.value = selectedId;
+            const lbl = itemLabelFallback != null ? String(itemLabelFallback).trim() : "";
+            o.textContent = lbl || "Previous item";
+            editItemSelect.appendChild(o);
+          }
+          editItemSelect.value = selectedId || "";
+        }
+
+        function openEditDialog(row) {
+          editingRecordId = row.id;
+          editExpenseErr.textContent = "";
+          editExpenseMeta.textContent = row.name ? "Record: " + row.name : "Edit expense";
+          fillEditItemSelect(row.itemId || "", row.itemName || "");
+          editPrice.value = row.price != null && row.price !== "" ? String(row.price) : "";
+          editQuantity.value = row.quantity != null && row.quantity !== "" ? String(row.quantity) : "1";
+          editExpenseDate.value = toDateInputValue(row.expenseDate) || todayLocal();
+          editCuotas.value = row.cuotas != null && row.cuotas !== "" ? String(row.cuotas) : "";
+          editReferencia.value = row.referencia != null ? String(row.referencia) : "";
+          editExpenseDialog.showModal();
+          editItemSelect.focus();
+        }
+
+        async function deleteExpenseRow(row) {
+          if (!confirm("Delete this expense? This cannot be undone.")) return;
+          historyMsg.textContent = "";
+          try {
+            const r = await fetch("/.netlify/functions/delete-expense", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ recordId: row.id, website: "" }),
+            });
+            const data = await r.json().catch(() => ({}));
+            if (!r.ok) {
+              historyMsg.textContent = data.error || JSON.stringify(data);
+              return;
+            }
+            await loadHistory();
+          } catch (err) {
+            historyMsg.textContent = String(err);
+          }
+        }
+
         async function loadHistory() {
           historyMsg.textContent = "";
-          historyBody.innerHTML = "<tr><td colspan='5'>Loading…</td></tr>";
+          historyBody.innerHTML = "<tr><td colspan='6'>Loading…</td></tr>";
           try {
             const r = await fetch("/.netlify/functions/list-history?limit=50");
             const text = await r.text();
@@ -353,47 +554,136 @@
             }
             const records = Array.isArray(data.records) ? data.records : [];
             if (!records.length) {
-              historyBody.innerHTML = "<tr><td colspan='5'>No rows yet.</td></tr>";
+              historyBody.innerHTML = "<tr><td colspan='6'>No rows yet.</td></tr>";
               return;
             }
             historyBody.innerHTML = "";
             records.forEach((row) => {
               const tr = document.createElement("tr");
-              const itemLabel = row.itemName || row.itemId || "—";
-              tr.innerHTML =
-                "<td>" +
-                escapeHtml(itemLabel) +
-                "</td><td>" +
-                escapeHtml(row.price != null ? String(row.price) : "—") +
-                "</td><td>" +
-                escapeHtml(row.quantity != null ? String(row.quantity) : "—") +
-                "</td><td>" +
-                escapeHtml(formatDate(row.expenseDate)) +
-                "</td><td>" +
-                escapeHtml(formatDate(row.createdDate)) +
-                "</td>";
+              const itemLabel = row.itemName || "—";
+              const tdItem = document.createElement("td");
+              tdItem.textContent = itemLabel;
+              const tdPrice = document.createElement("td");
+              tdPrice.textContent = row.price != null ? String(row.price) : "—";
+              const tdQty = document.createElement("td");
+              tdQty.textContent = row.quantity != null ? String(row.quantity) : "—";
+              const tdExp = document.createElement("td");
+              tdExp.textContent = formatDate(row.expenseDate);
+              const tdCreated = document.createElement("td");
+              tdCreated.textContent = formatDate(row.createdDate);
+              const tdAct = document.createElement("td");
+              tdAct.className = "history-actions";
+
+              const btnEdit = document.createElement("button");
+              btnEdit.type = "button";
+              btnEdit.className = "btn-icon-table";
+              btnEdit.setAttribute("aria-label", "Edit expense");
+              btnEdit.title = "Edit";
+              btnEdit.innerHTML = ICON_EDIT;
+              btnEdit.addEventListener("click", () => openEditDialog(row));
+
+              const btnDel = document.createElement("button");
+              btnDel.type = "button";
+              btnDel.className = "btn-icon-table danger";
+              btnDel.setAttribute("aria-label", "Delete expense");
+              btnDel.title = "Delete";
+              btnDel.innerHTML = ICON_DELETE;
+              btnDel.addEventListener("click", () => deleteExpenseRow(row));
+
+              tdAct.appendChild(btnEdit);
+              tdAct.appendChild(btnDel);
+              tr.appendChild(tdItem);
+              tr.appendChild(tdPrice);
+              tr.appendChild(tdQty);
+              tr.appendChild(tdExp);
+              tr.appendChild(tdCreated);
+              tr.appendChild(tdAct);
               historyBody.appendChild(tr);
             });
           } catch (e) {
-            historyBody.innerHTML = "<tr><td colspan='5'>Could not load history.</td></tr>";
+            historyBody.innerHTML = "<tr><td colspan='6'>Could not load history.</td></tr>";
             historyMsg.textContent = String(e.message || e);
           }
         }
 
-        function escapeHtml(s) {
-          const d = document.createElement("div");
-          d.textContent = s;
-          return d.innerHTML;
-        }
+        editExpenseDialog.addEventListener("close", () => {
+          editingRecordId = null;
+          editExpenseErr.textContent = "";
+        });
 
-        btnCreateItem.addEventListener("click", async () => {
-          newItemMsg.textContent = "";
-          const name = newItemName.value.trim();
-          if (!name) {
-            newItemMsg.textContent = "Enter a name.";
+        editExpenseCancel.addEventListener("click", () => {
+          editExpenseDialog.close();
+        });
+
+        editExpenseSave.addEventListener("click", async () => {
+          editExpenseErr.textContent = "";
+          const itemId = editItemSelect.value.trim();
+          if (!itemId) {
+            editExpenseErr.textContent = "Choose an item.";
             return;
           }
-          btnCreateItem.disabled = true;
+          editExpenseSave.disabled = true;
+          try {
+            const payload = {
+              website: "",
+              recordId: editingRecordId,
+              itemId: itemId,
+              price: editPrice.value,
+              quantity: editQuantity.value,
+              expenseDate: editExpenseDate.value || null,
+              cuotas: editCuotas.value,
+              referencia: editReferencia.value.trim() || null,
+            };
+            const r = await fetch("/.netlify/functions/update-expense", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            });
+            const data = await r.json().catch(() => ({}));
+            if (!r.ok) {
+              editExpenseErr.textContent = data.error || JSON.stringify(data);
+              return;
+            }
+            editExpenseDialog.close();
+            editingRecordId = null;
+            await loadHistory();
+          } catch (err) {
+            editExpenseErr.textContent = String(err);
+          } finally {
+            editExpenseSave.disabled = false;
+          }
+        });
+
+        function setQuickItemMsg(kind, text) {
+          quickItemMsg.className = "quick-item-msg" + (kind ? " " + kind : "");
+          quickItemMsg.textContent = text || "";
+        }
+
+        btnToggleQuickItem.addEventListener("click", () => {
+          const willOpen = quickItemPanel.hidden;
+          quickItemPanel.hidden = !willOpen;
+          btnToggleQuickItem.setAttribute("aria-expanded", willOpen ? "true" : "false");
+          setQuickItemMsg("", "");
+          if (willOpen) {
+            quickItemName.focus();
+          }
+        });
+
+        quickItemName.addEventListener("keydown", (ev) => {
+          if (ev.key === "Enter") {
+            ev.preventDefault();
+            btnQuickCreateItem.click();
+          }
+        });
+
+        btnQuickCreateItem.addEventListener("click", async () => {
+          setQuickItemMsg("", "");
+          const name = quickItemName.value.trim();
+          if (!name) {
+            setQuickItemMsg("err", "Enter a name.");
+            return;
+          }
+          btnQuickCreateItem.disabled = true;
           try {
             const r = await fetch("/.netlify/functions/create-item", {
               method: "POST",
@@ -402,17 +692,19 @@
             });
             const data = await r.json().catch(() => ({}));
             if (!r.ok) {
-              newItemMsg.textContent = data.error || JSON.stringify(data);
+              setQuickItemMsg("err", data.error || JSON.stringify(data));
               return;
             }
-            newItemName.value = "";
-            newItemMsg.textContent = "Created.";
+            quickItemName.value = "";
+            setQuickItemMsg("ok", "Created.");
+            quickItemPanel.hidden = true;
+            btnToggleQuickItem.setAttribute("aria-expanded", "false");
             await loadAllItems(data.id);
             loadHistory();
           } catch (err) {
-            newItemMsg.textContent = String(err);
+            setQuickItemMsg("err", String(err));
           } finally {
-            btnCreateItem.disabled = false;
+            btnQuickCreateItem.disabled = false;
           }
         });
 
@@ -462,11 +754,11 @@
             const data = await r.json().catch(() => ({}));
             if (r.ok) {
               out.classList.add("ok");
-              out.textContent = "Created record Id: " + (data.id || "—");
+              out.textContent = "Expense saved.";
               form.reset();
               setFormDefaults();
               itemSelect.selectedIndex = 0;
-              setPicked("", "");
+              setItemId("");
               clearItemStatus();
               loadAllItems().catch(() => {});
               loadHistory();
