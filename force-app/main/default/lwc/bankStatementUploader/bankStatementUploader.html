@@ -1,0 +1,178 @@
+<template>
+    <lightning-card title="Bank Statement Uploader" icon-name="standard:file">
+        <div class="slds-p-around_medium">
+            
+            <!-- File Upload Section -->
+            <div class="slds-m-bottom_medium">
+                <lightning-input 
+                    type="file" 
+                    label="Select Bank Statement PDF"
+                    accept=".pdf,.txt"
+                    onchange={handleFileUpload}
+                    disabled={isProcessing}>
+                </lightning-input>
+                
+                <div class="slds-m-top_small" if:true={fileName}>
+                    <lightning-badge label={fileName} variant="base"></lightning-badge>
+                </div>
+            </div>
+
+            <!-- Bank Type Selection -->
+            <div class="slds-m-bottom_medium">
+                <lightning-combobox
+                    name="bankType"
+                    label="Bank Type"
+                    value={selectedBankType}
+                    placeholder="Select Bank Type"
+                    options={bankTypeOptions}
+                    onchange={handleBankTypeChange}
+                    disabled={isProcessing}>
+                </lightning-combobox>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="slds-m-bottom_medium">
+                <lightning-button 
+                    variant="brand" 
+                    label="Process Statement" 
+                    onclick={handleProcessFile}
+                    disabled={isProcessing}
+                    class="slds-m-right_small">
+                </lightning-button>
+                
+                <lightning-button 
+                    variant="neutral" 
+                    label="Reset" 
+                    onclick={handleReset}
+                    disabled={isProcessing}>
+                </lightning-button>
+            </div>
+
+            <!-- Processing Status -->
+            <div if:true={isProcessing} class="slds-m-bottom_medium">
+                <lightning-spinner alternative-text="Processing bank statement..." size="small"></lightning-spinner>
+                <p class="slds-text-align_center">Processing bank statement...</p>
+            </div>
+
+            <!-- Results Section -->
+            <div if:true={showResults} class="slds-m-top_medium">
+                <lightning-card title="Processing Results" variant="narrow">
+                    <div class="slds-p-around_medium">
+                        <div class="slds-text-heading_small slds-m-bottom_small">
+                            {resultMessage}
+                        </div>
+                        
+                        <!-- View Buttons -->
+                        <div class="slds-m-top_medium">
+                            <lightning-button 
+                                variant="brand" 
+                                label="View Bank Statements" 
+                                onclick={handleViewBankStatements}
+                                class="slds-m-right_small">
+                            </lightning-button>
+                            
+                            <lightning-button 
+                                variant="brand" 
+                                label="View Expenses" 
+                                onclick={handleViewExpenses}>
+                            </lightning-button>
+                        </div>
+                    </div>
+                </lightning-card>
+            </div>
+
+            <!-- Recent Bank Statements -->
+            <div if:true={recentBankStatements.length} class="slds-m-top_medium">
+                <lightning-card title="Recent Bank Statements" variant="narrow">
+                    <div class="slds-p-around_medium">
+                        <template for:each={recentBankStatements} for:item="statement">
+                            <div key={statement.Id} class="slds-box slds-m-bottom_x-small">
+                                <div class="slds-grid slds-gutters">
+                                    <div class="slds-col slds-size_1-of-4">
+                                        <strong>{statement.Name}</strong>
+                                    </div>
+                                    <div class="slds-col slds-size_1-of-4">
+                                        {statement.Bank_Name__c}
+                                    </div>
+                                    <div class="slds-col slds-size_1-of-4">
+                                        <lightning-badge 
+                                            label={statement.Processing_Status__c} 
+                                            variant="warning">
+                                        </lightning-badge>
+                                    </div>
+                                    <div class="slds-col slds-size_1-of-4">
+                                        {statement.Total_Transactions__c} transactions
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </lightning-card>
+            </div>
+
+            <!-- Recent Expenses -->
+            <div if:true={recentExpenses.length} class="slds-m-top_medium">
+                <lightning-card title="Recent Expenses" variant="narrow">
+                    <div class="slds-p-around_medium">
+                        <template for:each={recentExpenses} for:item="expense">
+                            <div key={expense.Id} class="slds-box slds-m-bottom_x-small">
+                                <div class="slds-grid slds-gutters">
+                                    <div class="slds-col slds-size_1-of-4">
+                                        <strong>{expense.Name}</strong>
+                                    </div>
+                                    <div class="slds-col slds-size_1-of-3">
+                                        {expense.Description__c}
+                                    </div>
+                                    <div class="slds-col slds-size_1-of-6">
+                                        <span class={expenseTransactionTypeClass}>
+                                            {expense.Amount__c}
+                                        </span>
+                                    </div>
+                                    <div class="slds-col slds-size_1-of-6">
+                                        {expense.Transaction_Type__c}
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </lightning-card>
+            </div>
+
+            <!-- Instructions -->
+            <div class="slds-m-top_large">
+                <lightning-card title="Instructions" variant="narrow">
+                    <div class="slds-p-around_medium">
+                        <ol class="slds-list_dotted">
+                            <li>Upload your bank statement PDF file</li>
+                            <li>Select your bank type from the dropdown</li>
+                            <li>Click "Process Statement" to extract transactions</li>
+                            <li>Review the results and view created records</li>
+                        </ol>
+                        
+                        <div class="slds-m-top_medium">
+                            <strong>What happens during processing:</strong>
+                            <ul class="slds-list_dotted slds-m-top_x-small">
+                                <li>Creates a Bank Statement record</li>
+                                <li>Extracts individual transactions</li>
+                                <li>Creates corresponding Expense records</li>
+                                <li>Links transactions to expenses</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="slds-m-top_medium">
+                            <strong>Supported Banks:</strong>
+                            <ul class="slds-list_dotted slds-m-top_x-small">
+                                <li>Generic (works with most bank formats)</li>
+                                <li>Chase Bank</li>
+                                <li>Bank of America</li>
+                                <li>Wells Fargo</li>
+                                <li>Citibank</li>
+                            </ul>
+                        </div>
+                    </div>
+                </lightning-card>
+            </div>
+
+        </div>
+    </lightning-card>
+</template>

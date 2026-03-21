@@ -1,0 +1,118 @@
+<template>
+    <lightning-card title="PDF to Expense Item Processor" icon-name="standard:file">
+        <div class="slds-p-around_medium">
+            
+            <!-- File Upload Section -->
+            <div class="slds-m-bottom_medium">
+                <lightning-file-upload
+                    label="Upload Bank Statement PDF (Optional - Demo uses sample data)"
+                    name="pdfUpload"
+                    accept={acceptedFormats}
+                    record-id={recordId}
+                    onuploadfinished={handleUploadFinished}
+                    multiple="false">
+                </lightning-file-upload>
+            </div>
+            
+            <!-- Text Input for PDF Content -->
+            <div class="slds-m-bottom_medium">
+                <lightning-textarea
+                    label="Or paste PDF content here (for testing with real data)"
+                    placeholder="Paste the text content from your PDF bank statement here..."
+                    value={uploadedFileContent}
+                    onchange={handleTextContentChange}
+                    rows="8">
+                </lightning-textarea>
+                <div class="slds-m-top_small">
+                    <lightning-button
+                        variant="neutral"
+                        label="Clear Content"
+                        onclick={clearContent}
+                        class="slds-m-right_x-small">
+                    </lightning-button>
+                    <lightning-button
+                        variant="neutral"
+                        label="Use Pasted Content"
+                        onclick={usePastedContent}
+                        disabled={isContentEmpty}>
+                    </lightning-button>
+                </div>
+            </div>
+            
+            <!-- Bank Type Selection -->
+            <div class="slds-m-bottom_medium">
+                <lightning-combobox
+                    name="bankType"
+                    label="Bank Type"
+                    value={selectedBankType}
+                    placeholder="Select bank type"
+                    options={bankTypeOptions}
+                    onchange={handleBankTypeChange}>
+                </lightning-combobox>
+            </div>
+            
+            <!-- Process Button -->
+            <div class="slds-m-bottom_medium">
+                <lightning-button
+                    variant="brand"
+                    label="Process PDF"
+                    onclick={processPDF}
+                    disabled={isProcessing}>
+                </lightning-button>
+            </div>
+            
+            <!-- Processing Status -->
+            <template if:true={isProcessing}>
+                <div class="slds-m-bottom_medium">
+                    <lightning-spinner alternative-text="Processing PDF..." size="small"></lightning-spinner>
+                    <p class="slds-text-align_center">Processing PDF content...</p>
+                </div>
+            </template>
+            
+            <!-- Results Section -->
+            <template if:true={showResults}>
+                <div class="slds-box slds-theme_success slds-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-m-bottom_small">Processing Results</h3>
+                    <div class="slds-grid slds-wrap">
+                        <div class="slds-col slds-size_1-of-3">
+                            <p><strong>Total Transactions:</strong> {results.totalTransactions}</p>
+                        </div>
+                        <div class="slds-col slds-size_1-of-3">
+                            <p><strong>Items Created:</strong> {results.itemsCreated}</p>
+                        </div>
+                        <div class="slds-col slds-size_1-of-3">
+                            <p><strong>Expense Item Prices Created:</strong> {results.expenseItemPricesCreated}</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Created Records Links -->
+                    <template if:true={results.createdRecordIds.length}>
+                        <div class="slds-m-top_medium">
+                            <p><strong>Created Records:</strong></p>
+                            <template for:each={results.createdRecordIds} for:item="recordId">
+                                <div key={recordId} class="slds-m-top_x-small">
+                                    <lightning-formatted-url
+                                        value={recordId}
+                                        label="View Record"
+                                        target="_blank">
+                                    </lightning-formatted-url>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                </div>
+            </template>
+            
+            <!-- Error Section -->
+            <template if:true={showErrors}>
+                <div class="slds-box slds-theme_error slds-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-m-bottom_small">Processing Errors</h3>
+                    <template for:each={results.errors} for:item="error">
+                        <p key={error} class="slds-text-color_error">{error}</p>
+                    </template>
+                </div>
+            </template>
+            
+        </div>
+    </lightning-card>
+</template>

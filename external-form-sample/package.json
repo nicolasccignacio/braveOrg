@@ -1,0 +1,5 @@
+{
+  "name": "expense-form-netlify",
+  "private": true,
+  "description": "Netlify static form + functions → Salesforce REST (JWT)"
+}

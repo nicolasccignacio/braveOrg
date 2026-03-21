@@ -1,0 +1,155 @@
+<template>
+  <div class="slds-p-around_medium">
+    <lightning-tabset active-tab-value={activeTab} ontabchange={handleTabChange}>
+      <lightning-tab label="Create Expense" value="form">
+        <div class="slds-p-around_medium">
+    <template if:true={errorMessage}>
+      <div class="slds-notify slds-notify_alert slds-alert_error" role="alert">
+        <span class="slds-assistive-text">error</span>
+        <span class="slds-icon_container slds-icon-utility-error slds-m-right_small" title="Error">
+          <lightning-icon icon-name="utility:error" size="x-small"></lightning-icon>
+        </span>
+        <h2>{errorMessage}</h2>
+      </div>
+    </template>
+
+    <template if:true={successMessage}>
+      <div class="slds-notify slds-notify_alert slds-theme_success" role="status">
+        <span class="slds-assistive-text">success</span>
+        <span class="slds-icon_container slds-icon-utility-success slds-m-right_small" title="Success">
+          <lightning-icon icon-name="utility:success" size="x-small" alternative-text="Success"></lightning-icon>
+        </span>
+        <h2>{successMessage}</h2>
+      </div>
+    </template>
+
+    <lightning-record-edit-form
+      object-api-name="Expense_Item_Price__c"
+      onsubmit={handleSubmit}
+    >
+      <lightning-messages></lightning-messages>
+
+      <lightning-input-field
+        field-name="Item__c"
+        variant="label-stacked"
+      ></lightning-input-field>
+
+      <lightning-input-field
+        field-name="Price__c"
+        variant="label-stacked"
+      ></lightning-input-field>
+
+      <lightning-input-field
+        field-name="Quantity__c"
+        variant="label-stacked"
+      ></lightning-input-field>
+
+      <lightning-input-field
+        field-name="Expense_Date__c"
+        variant="label-stacked"
+      ></lightning-input-field>
+
+      <lightning-input-field
+        field-name="Cuotas__c"
+        variant="label-stacked"
+      ></lightning-input-field>
+
+      <lightning-input-field
+        field-name="Referencia__c"
+        variant="label-stacked"
+      ></lightning-input-field>
+
+      <div class="slds-m-top_medium">
+        <lightning-button
+          type="submit"
+          variant="brand"
+          label="Create"
+          class="slds-m-right_small"
+          disabled={loading}
+        ></lightning-button>
+        <lightning-button
+          type="button"
+          variant="neutral"
+          label="Reset"
+          onclick={handleReset}
+          disabled={loading}
+        ></lightning-button>
+      </div>
+    </lightning-record-edit-form>
+
+    <template if:true={loading}>
+      <div class="spinner">
+        <lightning-spinner size="small"></lightning-spinner>
+      </div>
+    </template>
+        </div>
+      </lightning-tab>
+
+      <lightning-tab label="Reports" value="reports">
+        <div class="slds-p-around_medium">
+          <template if:true={reportsEmbedsEnabled}>
+            <!-- Monthly Report: loads once user selects Reports tab -->
+            <div class="slds-m-bottom_large report-container">
+              <template if:true={monthlyReportUrl}>
+                <div class="iframe-wrapper">
+                  <iframe
+                    src={monthlyReportUrl}
+                    width="100%"
+                    height="1000"
+                    loading="lazy"
+                    frameborder="0"
+                    style="border:0"
+                    allowfullscreen
+                    sandbox="allow-storage-access-by-user-activation allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+                    title="Monthly Looker Studio Report">
+                  </iframe>
+                </div>
+              </template>
+              <template if:false={monthlyReportUrl}>
+                <div class="slds-text-align_center slds-m-vertical_medium">
+                  <p>Monthly report URL not configured.</p>
+                </div>
+              </template>
+            </div>
+
+            <!-- Annual Report: second network load only after user action -->
+            <div class="slds-m-bottom_large report-container">
+              <template if:true={annualReportUrl}>
+                <template if:false={annualReportRequested}>
+                  <div class="slds-text-align_center slds-m-vertical_medium">
+                    <lightning-button
+                      variant="neutral"
+                      label="Load annual report"
+                      title="Loads the annual Looker Studio embed (heavier; fetch on demand)"
+                      onclick={handleLoadAnnualReport}>
+                    </lightning-button>
+                  </div>
+                </template>
+                <template if:true={annualReportRequested}>
+                  <div class="iframe-wrapper">
+                    <iframe
+                      src={annualReportUrl}
+                      width="100%"
+                      height="500"
+                      loading="lazy"
+                      frameborder="0"
+                      style="border:0"
+                      allowfullscreen
+                      sandbox="allow-storage-access-by-user-activation allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+                      title="Annual Looker Studio Report">
+                    </iframe>
+                  </div>
+                </template>
+              </template>
+              <template if:false={annualReportUrl}>
+                <div class="slds-text-align_center slds-m-vertical_medium">
+                  <p>Annual report URL not configured.</p>
+                </div>
+              </template>
+            </div>
+          </template>
+        </div>
+      </lightning-tab>
+    </lightning-tabset>
+  </div>
+</template>

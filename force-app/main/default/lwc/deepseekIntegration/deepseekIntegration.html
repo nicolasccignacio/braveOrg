@@ -1,0 +1,21 @@
+<template>
+    <lightning-card title="DeepSeek Integration" icon-name="custom:custom63">
+        <div class="slds-p-around_medium">
+            <lightning-input
+                label="Input Data"
+                value={inputData}
+                onchange={handleInputChange}
+            ></lightning-input>
+            <lightning-button
+                label="Call DeepSeek API"
+                onclick={getCompletion}
+                class="slds-m-top_medium"
+            ></lightning-button>
+        </div>
+
+        <div class="slds-p-around_medium" if:true={responseData}>
+            <h3>Response from DeepSeek:</h3>
+            <pre>{responseData}</pre>
+        </div>
+    </lightning-card>
+</template>

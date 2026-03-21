@@ -1,0 +1,16 @@
+<apex:page >
+  <apex:includeLightning />
+  <div id="expenseItemPriceFormContainer" />
+  <script>
+    $Lightning.use("c:ExpenseItemPriceFormApp", function() {
+      $Lightning.createComponent(
+        "c:expenseItemPriceForm",
+        {},
+        "expenseItemPriceFormContainer",
+        function(cmp) {
+          // Component created and rendered
+        }
+      );
+    });
+  </script>
+</apex:page>

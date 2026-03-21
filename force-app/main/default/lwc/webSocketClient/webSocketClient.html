@@ -1,0 +1,11 @@
+<template>
+    <lightning-card title="WebSocket Client" icon-name="custom:custom63">
+      <div class="slds-m-around_medium">
+        <lightning-input label="Mensaje" value={message} onchange={handleMessageChange}></lightning-input>
+        <lightning-button label="Enviar" onclick={sendMessage}></lightning-button>
+        <div class="slds-m-top_medium">
+          <lightning-textarea label="Mensajes del servidor" value={serverMessages} readonly></lightning-textarea>
+        </div>
+      </div>
+    </lightning-card>
+  </template>

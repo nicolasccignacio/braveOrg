@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Create expense</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+      }
+      body {
+        font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+        max-width: 28rem;
+        margin: 2rem auto;
+        padding: 0 1rem;
+        line-height: 1.45;
+      }
+      h1 {
+        font-size: 1.35rem;
+        font-weight: 650;
+      }
+      .sub {
+        font-size: 0.9rem;
+        opacity: 0.85;
+        margin-bottom: 1.25rem;
+      }
+      label {
+        display: block;
+        margin-top: 0.85rem;
+        font-weight: 600;
+        font-size: 0.9rem;
+      }
+      input[type="text"],
+      input[type="number"],
+      input[type="date"],
+      input[type="search"] {
+        width: 100%;
+        box-sizing: border-box;
+        margin-top: 0.2rem;
+        padding: 0.45rem 0.5rem;
+        font: inherit;
+      }
+      .hint {
+        font-size: 0.8rem;
+        opacity: 0.88;
+        margin-top: 0.35rem;
+        margin-bottom: 0;
+      }
+      .search-wrap {
+        position: relative;
+        z-index: 5;
+      }
+      .results {
+        list-style: none;
+        margin: 0.25rem 0 0;
+        padding: 0;
+        border: 1px solid rgba(127, 127, 127, 0.45);
+        border-radius: 6px;
+        max-height: 12rem;
+        overflow: auto;
+        display: none;
+        position: relative;
+        z-index: 20;
+        background: canvas;
+        color: canvastext;
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+      }
+      .results.open {
+        display: block;
+      }
+      .results li button {
+        width: 100%;
+        text-align: left;
+        padding: 0.45rem 0.6rem;
+        border: none;
+        background: transparent;
+        font: inherit;
+        color: inherit;
+        cursor: pointer;
+      }
+      .results li button:hover,
+      .results li button:focus {
+        background: rgba(127, 127, 127, 0.18);
+        outline: none;
+      }
+      .picked {
+        font-size: 0.85rem;
+        margin-top: 0.35rem;
+        color: seagreen;
+      }
+      .picked.err {
+        color: crimson;
+      }
+      .search-status {
+        font-size: 0.8rem;
+        margin-top: 0.35rem;
+        min-height: 1.2em;
+      }
+      .search-status.loading {
+        opacity: 0.85;
+      }
+      .search-status.error {
+        color: crimson;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      button[type="submit"] {
+        margin-top: 1.25rem;
+        padding: 0.55rem 1.1rem;
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .msg {
+        margin-top: 1rem;
+        padding: 0.75rem;
+        border-radius: 6px;
+        font-size: 0.9rem;
+      }
+      .msg.ok {
+        background: rgba(46, 125, 50, 0.12);
+      }
+      .msg.err {
+        background: rgba(198, 40, 40, 0.12);
+      }
+      .hp {
+        position: absolute;
+        left: -9999px;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+      }
+      .divider {
+        margin: 1rem 0 0.25rem;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        opacity: 0.7;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Create expense</h1>
+    <p class="sub">
+      Static page on Netlify; data goes through serverless functions to Salesforce (no secrets in the
+      browser).
+    </p>
+
+    <form id="f" novalidate>
+      <input type="text" name="website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true" />
+
+      <label for="itemSearch">Item (search by name)</label>
+      <p class="hint" id="itemSearchHint">
+        Type at least 2 letters, wait for results, then <strong>click a row</strong> to select. Typing a
+        name alone does not select an item.
+      </p>
+      <div class="search-wrap">
+        <input
+          id="itemSearch"
+          type="text"
+          inputmode="search"
+          autocomplete="off"
+          placeholder="e.g. TES…"
+          aria-autocomplete="list"
+          aria-controls="itemList"
+          aria-expanded="false"
+        />
+        <ul id="itemList" class="results" role="listbox" aria-label="Matching items"></ul>
+      </div>
+      <div id="itemSearchStatus" class="search-status" role="status" aria-live="polite"></div>
+
+      <p class="divider">Or paste Id</p>
+      <label for="itemIdPaste">Item Salesforce Id</label>
+      <input
+        id="itemIdPaste"
+        type="text"
+        placeholder="15- or 18-character Id"
+        autocomplete="off"
+        spellcheck="false"
+      />
+      <p class="hint">Use this if search fails or you already know the Item record Id from Salesforce.</p>
+
+      <input type="hidden" name="itemId" id="itemId" />
+      <div id="pickedLine" class="picked err" role="status">No item selected.</div>
+
+      <label for="price">Price</label>
+      <input id="price" name="price" type="number" step="0.01" inputmode="decimal" />
+
+      <label for="quantity">Quantity</label>
+      <input id="quantity" name="quantity" type="number" step="0.01" inputmode="decimal" />
+
+      <label for="expenseDate">Expense date</label>
+      <input id="expenseDate" name="expenseDate" type="date" />
+
+      <label for="cuotas">Cuotas</label>
+      <input id="cuotas" name="cuotas" type="number" step="1" inputmode="numeric" />
+
+      <label for="referencia">Referencia</label>
+      <input id="referencia" name="referencia" type="text" />
+
+      <button type="submit">Create in Salesforce</button>
+    </form>
+    <div id="out" role="status"></div>
+
+    <script>
+      (function () {
+        const form = document.getElementById("f");
+        const searchInput = document.getElementById("itemSearch");
+        const itemIdPaste = document.getElementById("itemIdPaste");
+        const itemIdInput = document.getElementById("itemId");
+        const listEl = document.getElementById("itemList");
+        const pickedLine = document.getElementById("pickedLine");
+        const searchStatus = document.getElementById("itemSearchStatus");
+        const out = document.getElementById("out");
+
+        let debounceTimer;
+        let lastController;
+        let lastRecords = [];
+
+        function isValidSfId(s) {
+          return /^[a-zA-Z0-9]{15}([a-zA-Z0-9]{3})?$/.test(String(s || "").trim());
+        }
+
+        function setSearchStatus(kind, text) {
+          searchStatus.className = "search-status" + (kind ? " " + kind : "");
+          searchStatus.textContent = text || "";
+        }
+
+        function setPicked(id, label) {
+          itemIdInput.value = id || "";
+          if (id) {
+            pickedLine.textContent = "Selected: " + label + " (" + id + ")";
+            pickedLine.classList.remove("err");
+          } else {
+            pickedLine.textContent = "No item selected.";
+            pickedLine.classList.add("err");
+          }
+        }
+
+        function clearSearchSelection() {
+          setPicked("", "");
+          itemIdPaste.value = "";
+        }
+
+        function closeList() {
+          listEl.classList.remove("open");
+          listEl.innerHTML = "";
+          searchInput.setAttribute("aria-expanded", "false");
+          lastRecords = [];
+        }
+
+        function openList() {
+          listEl.classList.add("open");
+          searchInput.setAttribute("aria-expanded", "true");
+        }
+
+        function applyPasteId() {
+          const raw = itemIdPaste.value.trim();
+          if (!raw) {
+            if (!searchInput.value.trim()) setPicked("", "");
+            return;
+          }
+          if (isValidSfId(raw)) {
+            searchInput.value = "";
+            closeList();
+            setPicked(raw, "Pasted Id");
+            setSearchStatus("", "");
+          } else {
+            setPicked("", "");
+            pickedLine.textContent = "Id must be 15 or 18 alphanumeric characters.";
+            pickedLine.classList.add("err");
+          }
+        }
+
+        itemIdPaste.addEventListener("input", () => {
+          const raw = itemIdPaste.value.trim();
+          if (!raw) {
+            setPicked("", "");
+            return;
+          }
+          if (isValidSfId(raw)) {
+            searchInput.value = "";
+            closeList();
+            setPicked(raw, "Pasted Id");
+            setSearchStatus("", "");
+          } else {
+            setPicked("", "");
+            pickedLine.textContent = "No item selected.";
+            pickedLine.classList.add("err");
+          }
+        });
+
+        async function runSearch(q) {
+          if (lastController) lastController.abort();
+          lastController = new AbortController();
+          const url =
+            "/.netlify/functions/search-items?q=" + encodeURIComponent(q) + "&limit=25";
+          const r = await fetch(url, { signal: lastController.signal });
+          const text = await r.text();
+          let data;
+          try {
+            data = JSON.parse(text);
+          } catch {
+            throw new Error("Bad response (not JSON). Is the function deployed? " + text.slice(0, 120));
+          }
+          if (!r.ok) {
+            const detail =
+              data.details != null ? "\n" + JSON.stringify(data.details).slice(0, 400) : "";
+            throw new Error((data.error || "Search failed") + detail);
+          }
+          return data.records || [];
+        }
+
+        function pickRecord(row) {
+          itemIdPaste.value = "";
+          setPicked(row.id, row.name);
+          searchInput.value = row.name;
+          closeList();
+          setSearchStatus("", "");
+          searchInput.focus();
+        }
+
+        function renderResults(records) {
+          lastRecords = records;
+          listEl.innerHTML = "";
+          if (!records.length) {
+            const li = document.createElement("li");
+            li.textContent = "No matches — check spelling or paste an Item Id below.";
+            li.style.padding = "0.5rem 0.6rem";
+            li.style.fontSize = "0.9rem";
+            listEl.appendChild(li);
+            openList();
+            return;
+          }
+          records.forEach((row) => {
+            const li = document.createElement("li");
+            li.setAttribute("role", "presentation");
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.setAttribute("role", "option");
+            btn.textContent = row.name + "  ·  " + row.id;
+            btn.addEventListener("mousedown", (ev) => {
+              ev.preventDefault();
+            });
+            btn.addEventListener("click", (ev) => {
+              ev.stopPropagation();
+              pickRecord(row);
+            });
+            li.appendChild(btn);
+            listEl.appendChild(li);
+          });
+          openList();
+        }
+
+        searchInput.addEventListener("input", () => {
+          clearSearchSelection();
+          clearTimeout(debounceTimer);
+          const q = searchInput.value.trim();
+          if (q.length < 2) {
+            closeList();
+            setSearchStatus("", q.length ? "Type one more character…" : "");
+            return;
+          }
+          setSearchStatus("loading", "Searching…");
+          debounceTimer = setTimeout(async () => {
+            try {
+              const recs = await runSearch(q);
+              setSearchStatus("", "");
+              renderResults(recs);
+            } catch (e) {
+              if (e.name === "AbortError") return;
+              closeList();
+              setSearchStatus("error", String(e.message || e));
+            }
+          }, 300);
+        });
+
+        searchInput.addEventListener("keydown", (ev) => {
+          if (ev.key === "Enter") {
+            if (lastRecords.length > 0 && listEl.classList.contains("open")) {
+              ev.preventDefault();
+              pickRecord(lastRecords[0]);
+            }
+          }
+        });
+
+        document.addEventListener("click", (e) => {
+          if (!form.contains(e.target)) closeList();
+        });
+
+        form.addEventListener("submit", async (e) => {
+          e.preventDefault();
+          out.innerHTML = "";
+          out.className = "msg";
+
+          if (itemIdPaste.value.trim() && isValidSfId(itemIdPaste.value.trim())) {
+            itemIdInput.value = itemIdPaste.value.trim();
+          }
+
+          const fd = new FormData(form);
+          const payload = {
+            website: fd.get("website") || "",
+            itemId: (fd.get("itemId") || "").trim(),
+            price: fd.get("price"),
+            quantity: fd.get("quantity"),
+            expenseDate: fd.get("expenseDate") || null,
+            cuotas: fd.get("cuotas"),
+            referencia: (fd.get("referencia") || "").trim() || null,
+          };
+
+          if (!payload.itemId) {
+            out.classList.add("err");
+            out.textContent =
+              "Select an item: click a row under the search, or paste a valid Item Id (15/18 chars).";
+            return;
+          }
+
+          try {
+            const r = await fetch("/.netlify/functions/submit-expense", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            });
+            const data = await r.json().catch(() => ({}));
+            if (r.ok) {
+              out.classList.add("ok");
+              out.textContent = "Created record Id: " + (data.id || "—");
+              form.reset();
+              itemIdInput.value = "";
+              searchInput.value = "";
+              itemIdPaste.value = "";
+              clearSearchSelection();
+              closeList();
+              setSearchStatus("", "");
+            } else {
+              out.classList.add("err");
+              out.textContent = data.error || JSON.stringify(data);
+            }
+          } catch (err) {
+            out.classList.add("err");
+            out.textContent = String(err);
+          }
+        });
+      })();
+    </script>
+  </body>
+</html>
