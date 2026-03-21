@@ -10,7 +10,7 @@
       }
       body {
         font-family: system-ui, -apple-system, Segoe UI, sans-serif;
-        max-width: 28rem;
+        max-width: 40rem;
         margin: 2rem auto;
         padding: 0 1rem;
         line-height: 1.45;
@@ -18,6 +18,12 @@
       h1 {
         font-size: 1.35rem;
         font-weight: 650;
+      }
+      h2 {
+        font-size: 1.05rem;
+        font-weight: 650;
+        margin-top: 1.75rem;
+        margin-bottom: 0.5rem;
       }
       .sub {
         font-size: 0.9rem;
@@ -46,6 +52,23 @@
         margin-top: 0.35rem;
         margin-bottom: 0;
       }
+      .row-inline {
+        display: flex;
+        gap: 0.5rem;
+        align-items: flex-end;
+        flex-wrap: wrap;
+      }
+      .row-inline input[type="text"] {
+        flex: 1;
+        min-width: 10rem;
+        margin-top: 0.2rem;
+      }
+      .row-inline button {
+        padding: 0.45rem 0.85rem;
+        font: inherit;
+        cursor: pointer;
+        white-space: nowrap;
+      }
       .picked {
         font-size: 0.85rem;
         margin-top: 0.35rem;
@@ -57,10 +80,7 @@
       .item-status {
         font-size: 0.8rem;
         margin-top: 0.35rem;
-        min-height: 1.2em;
-      }
-      .item-status.loading {
-        opacity: 0.85;
+        min-height: 1em;
       }
       .item-status.error {
         color: crimson;
@@ -93,22 +113,50 @@
         height: 1px;
         overflow: hidden;
       }
-      .divider {
-        margin: 1rem 0 0.25rem;
-        font-size: 0.75rem;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        opacity: 0.7;
+      .history-wrap {
+        overflow-x: auto;
+        margin-top: 0.5rem;
+        border: 1px solid rgba(127, 127, 127, 0.35);
+        border-radius: 6px;
+      }
+      table.history {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.85rem;
+      }
+      .history th,
+      .history td {
+        padding: 0.4rem 0.5rem;
+        text-align: left;
+        border-bottom: 1px solid rgba(127, 127, 127, 0.25);
+      }
+      .history th {
+        font-weight: 600;
+        background: rgba(127, 127, 127, 0.08);
+      }
+      .history-status {
+        font-size: 0.8rem;
+        margin-top: 0.35rem;
+        color: crimson;
       }
     </style>
   </head>
   <body>
     <h1>Create expense</h1>
     <p class="sub">
-      Static page on Netlify; items load once from Salesforce when you open the page (serverless
-      function).
+      Items and history load when you open the page. New items can be added without leaving Salesforce
+      Setup.
     </p>
 
+    <h2>New item</h2>
+    <label for="newItemName">Name</label>
+    <div class="row-inline">
+      <input id="newItemName" type="text" placeholder="New item name" autocomplete="off" />
+      <button type="button" id="btnCreateItem">Create item</button>
+    </div>
+    <p id="newItemMsg" class="history-status" role="status" aria-live="polite"></p>
+
+    <h2>Expense</h2>
     <form id="f" novalidate>
       <input type="text" name="website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true" />
 
@@ -123,17 +171,6 @@
       </select>
       <div id="itemStatus" class="item-status" role="status" aria-live="polite"></div>
 
-      <p class="divider">Or paste Id</p>
-      <label for="itemIdPaste">Item Salesforce Id</label>
-      <input
-        id="itemIdPaste"
-        type="text"
-        placeholder="15- or 18-character Id"
-        autocomplete="off"
-        spellcheck="false"
-      />
-      <p class="hint">Overrides the dropdown when valid.</p>
-
       <input type="hidden" name="itemId" id="itemId" />
       <div id="pickedLine" class="picked err" role="status">No item selected.</div>
 
@@ -141,7 +178,7 @@
       <input id="price" name="price" type="number" step="0.01" inputmode="decimal" />
 
       <label for="quantity">Quantity</label>
-      <input id="quantity" name="quantity" type="number" step="0.01" inputmode="decimal" />
+      <input id="quantity" name="quantity" type="number" step="0.01" inputmode="decimal" value="1" />
 
       <label for="expenseDate">Expense date</label>
       <input id="expenseDate" name="expenseDate" type="date" />
@@ -156,23 +193,63 @@
     </form>
     <div id="out" role="status"></div>
 
+    <h2>History</h2>
+    <p class="hint">Recent expense rows (newest first). Uses <code>Expense_Item_Price__c</code> or Netlify <code>SF_EXPENSE_OBJECT</code>.</p>
+    <div class="history-wrap">
+      <table class="history" aria-label="Expense history">
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th>Price</th>
+            <th>Qty</th>
+            <th>Expense date</th>
+            <th>Created</th>
+          </tr>
+        </thead>
+        <tbody id="historyBody">
+          <tr>
+            <td colspan="5">Loading…</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p id="historyMsg" class="history-status" role="status" aria-live="polite"></p>
+
     <script>
       (function () {
         const form = document.getElementById("f");
         const itemSelect = document.getElementById("itemSelect");
-        const itemIdPaste = document.getElementById("itemIdPaste");
         const itemIdInput = document.getElementById("itemId");
         const pickedLine = document.getElementById("pickedLine");
         const itemStatus = document.getElementById("itemStatus");
         const out = document.getElementById("out");
+        const historyBody = document.getElementById("historyBody");
+        const historyMsg = document.getElementById("historyMsg");
+        const newItemName = document.getElementById("newItemName");
+        const btnCreateItem = document.getElementById("btnCreateItem");
+        const newItemMsg = document.getElementById("newItemMsg");
 
-        function isValidSfId(s) {
-          return /^[a-zA-Z0-9]{15}([a-zA-Z0-9]{3})?$/.test(String(s || "").trim());
+        function todayLocal() {
+          const d = new Date();
+          const y = d.getFullYear();
+          const m = String(d.getMonth() + 1).padStart(2, "0");
+          const day = String(d.getDate()).padStart(2, "0");
+          return y + "-" + m + "-" + day;
         }
 
-        function setItemStatus(kind, text) {
-          itemStatus.className = "item-status" + (kind ? " " + kind : "");
+        function setFormDefaults() {
+          document.getElementById("quantity").value = "1";
+          document.getElementById("expenseDate").value = todayLocal();
+        }
+
+        function setItemStatusError(text) {
+          itemStatus.className = "item-status error";
           itemStatus.textContent = text || "";
+        }
+
+        function clearItemStatus() {
+          itemStatus.className = "item-status";
+          itemStatus.textContent = "";
         }
 
         function setPicked(id, label) {
@@ -188,38 +265,20 @@
 
         function syncFromSelect() {
           const id = itemSelect.value.trim();
-          itemIdPaste.value = "";
           if (!id) {
             setPicked("", "");
             return;
           }
           const opt = itemSelect.options[itemSelect.selectedIndex];
-          const label = opt ? opt.textContent : id;
+          const label = opt ? opt.textContent.replace(/\s+·\s+.*$/, "").trim() : id;
           setPicked(id, label);
-          setItemStatus("", "");
+          clearItemStatus();
         }
 
         itemSelect.addEventListener("change", syncFromSelect);
 
-        itemIdPaste.addEventListener("input", () => {
-          const raw = itemIdPaste.value.trim();
-          if (!raw) {
-            syncFromSelect();
-            return;
-          }
-          if (isValidSfId(raw)) {
-            itemSelect.value = "";
-            setPicked(raw, "Pasted Id");
-            setItemStatus("", "");
-          } else {
-            setPicked("", "");
-            pickedLine.textContent = "No item selected.";
-            pickedLine.classList.add("err");
-          }
-        });
-
-        async function loadAllItems() {
-          setItemStatus("loading", "Loading items from Salesforce…");
+        async function loadAllItems(selectIdAfter) {
+          clearItemStatus();
           itemSelect.innerHTML = "";
           const optWait = document.createElement("option");
           optWait.value = "";
@@ -258,33 +317,124 @@
           });
 
           setPicked("", "");
-          setItemStatus(
-            "",
-            records.length ? records.length + " item(s) loaded." : "No rows — check object name (SF_ITEM_OBJECT) and permissions."
-          );
+          if (selectIdAfter && records.some((row) => row.id === selectIdAfter)) {
+            itemSelect.value = selectIdAfter;
+            syncFromSelect();
+          }
         }
 
+        function formatDate(s) {
+          if (s == null || s === "") return "—";
+          const str = String(s);
+          if (str.length >= 10) return str.slice(0, 10);
+          try {
+            return new Date(str).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" });
+          } catch {
+            return str;
+          }
+        }
+
+        async function loadHistory() {
+          historyMsg.textContent = "";
+          historyBody.innerHTML = "<tr><td colspan='5'>Loading…</td></tr>";
+          try {
+            const r = await fetch("/.netlify/functions/list-history?limit=50");
+            const text = await r.text();
+            let data;
+            try {
+              data = JSON.parse(text);
+            } catch {
+              throw new Error(text.slice(0, 200));
+            }
+            if (!r.ok) {
+              const parts = [data.error || "History failed"];
+              if (data.details) parts.push(JSON.stringify(data.details).slice(0, 400));
+              throw new Error(parts.join(" "));
+            }
+            const records = Array.isArray(data.records) ? data.records : [];
+            if (!records.length) {
+              historyBody.innerHTML = "<tr><td colspan='5'>No rows yet.</td></tr>";
+              return;
+            }
+            historyBody.innerHTML = "";
+            records.forEach((row) => {
+              const tr = document.createElement("tr");
+              const itemLabel = row.itemName || row.itemId || "—";
+              tr.innerHTML =
+                "<td>" +
+                escapeHtml(itemLabel) +
+                "</td><td>" +
+                escapeHtml(row.price != null ? String(row.price) : "—") +
+                "</td><td>" +
+                escapeHtml(row.quantity != null ? String(row.quantity) : "—") +
+                "</td><td>" +
+                escapeHtml(formatDate(row.expenseDate)) +
+                "</td><td>" +
+                escapeHtml(formatDate(row.createdDate)) +
+                "</td>";
+              historyBody.appendChild(tr);
+            });
+          } catch (e) {
+            historyBody.innerHTML = "<tr><td colspan='5'>Could not load history.</td></tr>";
+            historyMsg.textContent = String(e.message || e);
+          }
+        }
+
+        function escapeHtml(s) {
+          const d = document.createElement("div");
+          d.textContent = s;
+          return d.innerHTML;
+        }
+
+        btnCreateItem.addEventListener("click", async () => {
+          newItemMsg.textContent = "";
+          const name = newItemName.value.trim();
+          if (!name) {
+            newItemMsg.textContent = "Enter a name.";
+            return;
+          }
+          btnCreateItem.disabled = true;
+          try {
+            const r = await fetch("/.netlify/functions/create-item", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ name: name }),
+            });
+            const data = await r.json().catch(() => ({}));
+            if (!r.ok) {
+              newItemMsg.textContent = data.error || JSON.stringify(data);
+              return;
+            }
+            newItemName.value = "";
+            newItemMsg.textContent = "Created.";
+            await loadAllItems(data.id);
+            loadHistory();
+          } catch (err) {
+            newItemMsg.textContent = String(err);
+          } finally {
+            btnCreateItem.disabled = false;
+          }
+        });
+
         window.addEventListener("DOMContentLoaded", () => {
-          loadAllItems().catch((e) => {
-            itemSelect.innerHTML = "";
-            const o = document.createElement("option");
-            o.value = "";
-            o.textContent = "Could not load items";
-            itemSelect.appendChild(o);
-            setItemStatus("error", String(e.message || e));
-          });
+          setFormDefaults();
+          loadAllItems()
+            .catch((e) => {
+              itemSelect.innerHTML = "";
+              const o = document.createElement("option");
+              o.value = "";
+              o.textContent = "Could not load items";
+              itemSelect.appendChild(o);
+              setItemStatusError(String(e.message || e));
+            });
+          loadHistory();
         });
 
         form.addEventListener("submit", async (e) => {
           e.preventDefault();
           out.innerHTML = "";
           out.className = "msg";
-
-          if (itemIdPaste.value.trim() && isValidSfId(itemIdPaste.value.trim())) {
-            itemIdInput.value = itemIdPaste.value.trim();
-          } else {
-            syncFromSelect();
-          }
+          syncFromSelect();
 
           const fd = new FormData(form);
           const payload = {
@@ -299,7 +449,7 @@
 
           if (!payload.itemId) {
             out.classList.add("err");
-            out.textContent = "Choose an item in the list or paste a valid Item Id.";
+            out.textContent = "Choose an item in the list.";
             return;
           }
 
@@ -314,11 +464,12 @@
               out.classList.add("ok");
               out.textContent = "Created record Id: " + (data.id || "—");
               form.reset();
-              itemIdPaste.value = "";
+              setFormDefaults();
               itemSelect.selectedIndex = 0;
               setPicked("", "");
-              setItemStatus("", "");
+              clearItemStatus();
               loadAllItems().catch(() => {});
+              loadHistory();
             } else {
               out.classList.add("err");
               out.textContent = data.error || JSON.stringify(data);

@@ -4,19 +4,11 @@
  */
 
 const { sfRestRequest, escapeSoqlString } = require("./lib/sf-client");
+const { itemObjectApiName } = require("./lib/sf-objects");
 const { clientIp, allowRequest, json, corsHeaders } = require("./lib/http-helpers");
 
 const MAX_LIST = 2000;
 const MAX_SEARCH = 50;
-
-/** Safe API name for SOQL FROM (default Item__c). Override with env SF_ITEM_OBJECT if your object differs. */
-function itemObjectApiName() {
-  const raw = (process.env.SF_ITEM_OBJECT || "Item__c").trim();
-  if (!/^[A-Za-z][A-Za-z0-9_]*$/.test(raw)) {
-    throw new Error("Invalid SF_ITEM_OBJECT");
-  }
-  return raw;
-}
 
 function buildQuery(term, limitParam) {
   const objectName = itemObjectApiName();

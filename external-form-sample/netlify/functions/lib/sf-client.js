@@ -25,6 +25,7 @@
  *     SF_INSTANCE_URL  if token response has no instance_url
  *
  *   SF_API_VERSION (optional, default 60.0)
+ *   SF_EXPENSE_OBJECT (optional) default Expense_Item_Price__c — for list-history function
  *   ALLOWED_ORIGIN — see lib/http-helpers.js
  */
 
