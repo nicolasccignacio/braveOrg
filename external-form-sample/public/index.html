@@ -783,6 +783,19 @@
           }
         });
 
+        function reloadExpensePageData() {
+          refreshHints();
+          refreshSfDeployHint();
+          loadAllItems()
+            .catch((e) => {
+              itemsCache = [];
+              itemSearch.disabled = true;
+              itemSearch.placeholder = "Could not load items";
+              setItemStatusError(String(e.message || e));
+            });
+          loadHistory();
+        }
+
         window.addEventListener("DOMContentLoaded", async () => {
           if (window.SFExpenseSession) {
             try {
@@ -802,16 +815,18 @@
             out.className = "msg err";
             out.textContent = flash;
           }
-          refreshHints();
           setFormDefaults();
-          loadAllItems()
-            .catch((e) => {
-              itemsCache = [];
-              itemSearch.disabled = true;
-              itemSearch.placeholder = "Could not load items";
-              setItemStatusError(String(e.message || e));
-            });
-          loadHistory();
+          reloadExpensePageData();
+        });
+
+        /* bfcache: DOMContentLoaded does not run when user returns via Back/Forward */
+        window.addEventListener("pageshow", function (ev) {
+          if (ev.persisted) reloadExpensePageData();
+        });
+
+        /* Refetch when the tab becomes visible again (e.g. switched back from another tab) */
+        document.addEventListener("visibilitychange", function () {
+          if (document.visibilityState === "visible") reloadExpensePageData();
         });
 
         form.addEventListener("submit", async (e) => {
