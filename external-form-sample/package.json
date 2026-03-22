@@ -7,6 +7,7 @@
   },
   "description": "Netlify site (public/) + Netlify Functions; bank PDF uses Vercel AI Gateway API key only (no Vercel deploy).",
   "dependencies": {
+    "@napi-rs/canvas": "0.1.80",
     "ai": "^6.0.134",
     "pdf-parse": "^2.4.5"
   }

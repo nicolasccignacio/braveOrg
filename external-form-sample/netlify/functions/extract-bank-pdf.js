@@ -18,6 +18,32 @@ const DEFAULT_MAX_PAGES = 35;
 const DEFAULT_AI_GATEWAY_MODEL = "google/gemini-2.5-flash";
 
 /**
+ * pdf.js (bundled with pdf-parse v2) expects `DOMMatrix` / `Path2D` / `ImageData` on globalThis.
+ * The package's `pdf-parse/worker` entry sets these from `@napi-rs/canvas`; the default export does not.
+ */
+function ensurePdfCanvasGlobals() {
+  if (typeof globalThis.DOMMatrix !== "undefined") {
+    return;
+  }
+  try {
+    const { DOMMatrix, Path2D, ImageData } = require("@napi-rs/canvas");
+    globalThis.DOMMatrix = DOMMatrix;
+    if (typeof globalThis.Path2D === "undefined" && Path2D) {
+      globalThis.Path2D = Path2D;
+    }
+    if (typeof globalThis.ImageData === "undefined" && ImageData) {
+      globalThis.ImageData = ImageData;
+    }
+  } catch (e) {
+    const msg = e && e.message ? e.message : String(e);
+    throw new Error(
+      "PDF parsing needs @napi-rs/canvas (DOMMatrix for pdf.js). Ensure it is installed and not stripped by the bundler. " +
+        msg
+    );
+  }
+}
+
+/**
  * AI SDK reads `AI_GATEWAY_API_KEY`. Netlify must expose the var to Functions (scope Functions or All).
  * @returns {string} trimmed key or empty
  */
@@ -116,6 +142,7 @@ exports.handler = async (event) => {
       Math.max(1, parseInt(process.env.PDF_MAX_PAGES || String(DEFAULT_MAX_PAGES), 10) || DEFAULT_MAX_PAGES)
     );
 
+    ensurePdfCanvasGlobals();
     const { PDFParse } = await import("pdf-parse");
     const { generateText } = await import("ai");
 

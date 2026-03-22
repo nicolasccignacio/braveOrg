@@ -2,6 +2,10 @@
   publish = "public"
   functions = "netlify/functions"
 
+# pdf-parse / pdf.js need @napi-rs/canvas native binaries — keep them out of the JS bundle.
+[functions]
+  external_node_modules = ["@napi-rs/canvas", "pdf-parse"]
+
 [[headers]]
   for = "/*"
   [headers.values]
