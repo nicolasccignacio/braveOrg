@@ -165,9 +165,9 @@
           <strong>Option B — Vercel AI Gateway:</strong> open
           <a href="https://vercel.com/docs/ai-gateway" rel="noopener noreferrer">AI Gateway</a>, create an API key, and
           set <code>AI_GATEWAY_API_KEY</code> in Netlify. Note: Vercel may require a <strong>payment method on file</strong>
-          even to use included credits. Optional: <code>AI_GATEWAY_MODEL</code> (e.g.
-          <code>google/gemini-2.5-flash</code> or
-          <a href="https://vercel.com/ai-gateway/models" rel="noopener noreferrer">other Gateway models</a>).
+          even to use included credits. Default: <code>zai/glm-4.6v-flash</code>. Override with
+          <code>AI_GATEWAY_MODEL</code> — see
+          <a href="https://vercel.com/ai-gateway/models" rel="noopener noreferrer">Gateway models</a>.
         </li>
         <li>
           If both Google and Gateway keys are set, the function uses <strong>Google</strong> first.

@@ -6,7 +6,7 @@
  * (Functions scope). Optional: GEMINI_MODEL (default gemini-2.5-flash).
  *
  * Or Vercel AI Gateway: AI_GATEWAY_API_KEY (alias AI_GATEWAY_KEY). Optional: AI_GATEWAY_MODEL
- * (default google/gemini-2.5-flash). Gateway may require a payment method on the Vercel account.
+ * (default zai/glm-4.6v-flash). Gateway may require a payment method on the Vercel account.
  *
  * Optional: PDF_MAX_PAGES
  */
@@ -18,8 +18,8 @@ const { clientIp, allowRequest, json, corsHeaders } = require("./lib/http-helper
 const MAX_BODY_BYTES = 4 * 1024 * 1024;
 const DEFAULT_MAX_PAGES = 35;
 
-/** Low-cost; good for JSON extraction. Gateway-only models use provider prefix (e.g. anthropic/claude-…). */
-const DEFAULT_AI_GATEWAY_MODEL = "google/gemini-2.5-flash";
+/** Gateway default: Z.AI GLM-4.6V Flash (see Vercel AI Gateway models). Override via AI_GATEWAY_MODEL. */
+const DEFAULT_AI_GATEWAY_MODEL = "zai/glm-4.6v-flash";
 const DEFAULT_GEMINI_MODEL = "gemini-2.5-flash";
 
 /**
