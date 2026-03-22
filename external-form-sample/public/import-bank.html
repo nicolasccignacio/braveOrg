@@ -160,8 +160,10 @@
           create an <strong>API key</strong> (you do not need to deploy this project to Vercel).
         </li>
         <li>
-          In <strong>Netlify</strong> → Site settings → Environment variables, add
-          <code>AI_GATEWAY_API_KEY</code> with that key. Redeploy the site so the function can read it.
+          In <strong>Netlify</strong> → Site configuration → Environment variables, add
+          <code>AI_GATEWAY_API_KEY</code> with that key. Set <strong>Scopes</strong> to include
+          <strong>Functions</strong> (or <strong>All</strong>) — variables limited to <em>Builds</em> are not available
+          to serverless functions. Save, then <strong>redeploy</strong> the site.
         </li>
         <li>
           Default model: <code>google/gemini-2.5-flash</code> (low cost on Gateway / friendly to free credits; AI SDK

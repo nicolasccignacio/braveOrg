@@ -3,7 +3,8 @@
  * Runs on Netlify only. You do NOT deploy this repo to Vercel.
  *
  * Create an API key in the Vercel dashboard → AI Gateway, then set AI_GATEWAY_API_KEY
- * in Netlify (Site settings → Environment variables).
+ * in Netlify (Environment variables) with scope including Functions — not Builds-only.
+ * Optional alias: AI_GATEWAY_KEY. Redeploy after changing env vars.
  *
  * Optional: AI_GATEWAY_MODEL (default google/gemini-2.5-flash), PDF_MAX_PAGES
  */
@@ -15,6 +16,17 @@ const DEFAULT_MAX_PAGES = 35;
 
 /** Low-cost on AI Gateway (stretches free credits); good for JSON extraction. Override e.g. anthropic/claude-sonnet-4.6. */
 const DEFAULT_AI_GATEWAY_MODEL = "google/gemini-2.5-flash";
+
+/**
+ * AI SDK reads `AI_GATEWAY_API_KEY`. Netlify must expose the var to Functions (scope Functions or All).
+ * @returns {string} trimmed key or empty
+ */
+function resolveAiGatewayApiKey() {
+  const raw = process.env.AI_GATEWAY_API_KEY || process.env.AI_GATEWAY_KEY;
+  if (raw == null) return "";
+  const v = String(raw).trim();
+  return v;
+}
 
 function parseTransactionsFromModelText(raw) {
   let s = String(raw || "").trim();
@@ -69,12 +81,15 @@ exports.handler = async (event) => {
       return json(429, event, { error: "Too many requests. Try again in a minute." });
     }
 
-    if (!process.env.AI_GATEWAY_API_KEY || !String(process.env.AI_GATEWAY_API_KEY).trim()) {
+    const gatewayKey = resolveAiGatewayApiKey();
+    if (!gatewayKey) {
       return json(500, event, {
-        error:
-          "Missing AI_GATEWAY_API_KEY. In Vercel → AI Gateway create an API key (no app deploy required). Add it to Netlify → Site settings → Environment variables.",
+        error: "Missing AI Gateway API key in the function runtime.",
+        hint:
+          "Create a key in Vercel → AI Gateway (no app deploy required). In Netlify → Site configuration → Environment variables, add AI_GATEWAY_API_KEY (or AI_GATEWAY_KEY) and set scopes to include Functions or All — if the var is Builds-only, functions cannot read it. Save, then trigger a new deploy.",
       });
     }
+    process.env.AI_GATEWAY_API_KEY = gatewayKey;
 
     let payload;
     try {
