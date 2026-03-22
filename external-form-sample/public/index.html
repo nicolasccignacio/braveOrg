@@ -202,11 +202,19 @@
           }
         }
 
+        function isSfOAuthClientConfigured() {
+          var s = window.SFExpenseSession;
+          if (!s) return false;
+          if (typeof s.hasOAuthClientConfigured === "function") return s.hasOAuthClientConfigured();
+          if (typeof s.getClientId === "function") return !!String(s.getClientId() || "").trim();
+          return false;
+        }
+
         function refreshSfDeployHint() {
           var el = document.getElementById("sfDeployHint");
           var btn = document.getElementById("btnSfConnect");
           if (!window.SFExpenseSession) return;
-          var ok = SFExpenseSession.hasOAuthClientConfigured();
+          var ok = isSfOAuthClientConfigured();
           if (el) {
             el.textContent = ok
               ? "Sign in to use your org’s data. Login URL, Client ID, and API version are set when the site is built."
