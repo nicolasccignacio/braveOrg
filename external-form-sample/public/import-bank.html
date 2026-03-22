@@ -179,8 +179,8 @@
           If both Google and Gateway keys are set, the function uses <strong>Google</strong> first.
         </li>
         <li>
-          Leave the URL field below empty on Netlify; it uses the function path automatically. Override only for custom
-          setups.
+          On <strong>Netlify</strong> hosting, leave the URL field empty. On <strong>GitHub Pages</strong>, paste the full
+          function URL or set <code>NETLIFY_SITE_URL</code> in Actions so <code>api-origin.js</code> is rewritten on deploy.
         </li>
       </ol>
     </details>
@@ -191,11 +191,12 @@
       id="apiUrl"
       type="url"
       autocomplete="off"
-      placeholder="Leave empty — uses Netlify function /.netlify/functions/extract-bank-pdf"
+      placeholder="On GitHub Pages: paste full URL — https://YOUR-SITE.netlify.app/.netlify/functions/extract-bank-pdf"
     />
-    <p class="hint">
-      Same-origin on Netlify needs no URL. Saved in localStorage. Optional:
-      <code>window.__BANK_IMPORT_API__</code> for a full URL.
+    <p class="hint" id="connectionHint">
+      On <strong>Netlify</strong>, leave empty (same-origin). On <strong>GitHub Pages</strong>, you must paste the full
+      Netlify function URL — root-relative <code>/.netlify/…</code> points at <code>github.io</code>, not your backend.
+      Saved in localStorage. Optional: <code>window.__BANK_IMPORT_API__</code>.
     </p>
 
     <h2>PDF file</h2>
@@ -244,6 +245,14 @@
           statusEl.textContent = text || "";
         }
 
+        function relativeNetlifyPathWouldHitWrongOrigin(url) {
+          if (!url || url.charAt(0) !== "/" || url.indexOf("/.netlify/") !== 0) return false;
+          const h = (location.hostname || "").toLowerCase();
+          if (h.endsWith(".github.io")) return true;
+          if (h.indexOf("githubusercontent.com") >= 0) return true;
+          return false;
+        }
+
         function resolveApiUrl() {
           if (typeof window.__BANK_IMPORT_API__ === "string" && window.__BANK_IMPORT_API__.trim()) {
             return window.__BANK_IMPORT_API__.trim();
@@ -286,6 +295,16 @@
             showStatus("err", "Could not resolve API URL.");
             return;
           }
+          if (relativeNetlifyPathWouldHitWrongOrigin(url)) {
+            showStatus(
+              "err",
+              "This page is not on Netlify, but the API URL is relative (starts with /). The browser will call " +
+                location.origin +
+                ", not your functions. Paste the full URL: https://YOUR-SITE.netlify.app/.netlify/functions/extract-bank-pdf " +
+                "(or set NETLIFY_SITE_URL in GitHub Actions and redeploy Pages)."
+            );
+            return;
+          }
           const f = pdfFile.files && pdfFile.files[0];
           if (!f) {
             showStatus("err", "Choose a PDF file.");
@@ -302,6 +321,7 @@
             const pdfBase64 = await fileToBase64(f);
             const r = await fetch(url, {
               method: "POST",
+              mode: "cors",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ pdfBase64: pdfBase64, filename: f.name }),
             });
@@ -341,7 +361,16 @@
             });
             tableWrap.hidden = false;
           } catch (e) {
-            showStatus("err", String(e.message || e));
+            const msg = String(e.message || e);
+            if (e && e.name === "TypeError" && /fetch|network|Failed to fetch/i.test(msg)) {
+              showStatus(
+                "err",
+                "Failed to reach the API (network/CORS or wrong URL). If you use GitHub Pages, paste the full Netlify " +
+                  "function URL in \"Override API URL\". On Netlify, ensure the site is deployed and functions run."
+              );
+            } else {
+              showStatus("err", msg);
+            }
           } finally {
             btnExtract.disabled = !pdfFile.files || !pdfFile.files.length;
           }
