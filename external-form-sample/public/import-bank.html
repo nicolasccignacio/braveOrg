@@ -148,28 +148,29 @@
     </p>
 
     <details class="setup">
-      <summary>Vercel AI Gateway (no Vercel app deploy)</summary>
+      <summary>AI setup: Google (recommended) or Vercel AI Gateway</summary>
       <ol>
         <li>
           This site runs on <strong>Netlify</strong> (same as the expense form). Bank import calls a
           <strong>Netlify Function</strong>: <code>/.netlify/functions/extract-bank-pdf</code>.
         </li>
         <li>
-          You only use Vercel for <strong>AI Gateway</strong>: open
-          <a href="https://vercel.com/docs/ai-gateway" rel="noopener noreferrer">AI Gateway</a> in the Vercel dashboard,
-          create an <strong>API key</strong> (you do not need to deploy this project to Vercel).
+          <strong>Option A — Google Gemini (no Vercel billing):</strong> create an API key in
+          <a href="https://aistudio.google.com/apikey" rel="noopener noreferrer">Google AI Studio</a>. In Netlify →
+          Environment variables, add <code>GOOGLE_GENERATIVE_AI_API_KEY</code> or <code>GEMINI_API_KEY</code> (scopes:
+          <strong>Functions</strong> or <strong>All</strong>), then redeploy. Optional: <code>GEMINI_MODEL</code> (default
+          <code>gemini-2.5-flash</code>).
         </li>
         <li>
-          In <strong>Netlify</strong> → Site configuration → Environment variables, add
-          <code>AI_GATEWAY_API_KEY</code> with that key. Set <strong>Scopes</strong> to include
-          <strong>Functions</strong> (or <strong>All</strong>) — variables limited to <em>Builds</em> are not available
-          to serverless functions. Save, then <strong>redeploy</strong> the site.
+          <strong>Option B — Vercel AI Gateway:</strong> open
+          <a href="https://vercel.com/docs/ai-gateway" rel="noopener noreferrer">AI Gateway</a>, create an API key, and
+          set <code>AI_GATEWAY_API_KEY</code> in Netlify. Note: Vercel may require a <strong>payment method on file</strong>
+          even to use included credits. Optional: <code>AI_GATEWAY_MODEL</code> (e.g.
+          <code>google/gemini-2.5-flash</code> or
+          <a href="https://vercel.com/ai-gateway/models" rel="noopener noreferrer">other Gateway models</a>).
         </li>
         <li>
-          Default model: <code>google/gemini-2.5-flash</code> (low cost on Gateway / friendly to free credits; AI SDK
-          <code>generateText</code>). For a heavier model, set <code>AI_GATEWAY_MODEL</code> (e.g.
-          <code>anthropic/claude-sonnet-4.6</code>) — see
-          <a href="https://vercel.com/ai-gateway/models" rel="noopener noreferrer">Gateway models</a>.
+          If both Google and Gateway keys are set, the function uses <strong>Google</strong> first.
         </li>
         <li>
           Leave the URL field below empty on Netlify; it uses the function path automatically. Override only for custom

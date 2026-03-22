@@ -1,12 +1,14 @@
 /**
- * Bank PDF → text → Vercel AI Gateway (AI SDK generateText + model id string).
- * Runs on Netlify only. You do NOT deploy this repo to Vercel.
+ * Bank PDF → text → AI (Vercel AI Gateway or Google Gemini via @ai-sdk/google).
+ * Runs on Netlify only.
  *
- * Create an API key in the Vercel dashboard → AI Gateway, then set AI_GATEWAY_API_KEY
- * in Netlify (Environment variables) with scope including Functions — not Builds-only.
- * Optional alias: AI_GATEWAY_KEY. Redeploy after changing env vars.
+ * Prefer Google AI Studio (no Vercel card): set GOOGLE_GENERATIVE_AI_API_KEY or GEMINI_API_KEY
+ * (Functions scope). Optional: GEMINI_MODEL (default gemini-2.5-flash).
  *
- * Optional: AI_GATEWAY_MODEL (default google/gemini-2.5-flash), PDF_MAX_PAGES
+ * Or Vercel AI Gateway: AI_GATEWAY_API_KEY (alias AI_GATEWAY_KEY). Optional: AI_GATEWAY_MODEL
+ * (default google/gemini-2.5-flash). Gateway may require a payment method on the Vercel account.
+ *
+ * Optional: PDF_MAX_PAGES
  */
 
 const { pathToFileURL } = require("url");
@@ -16,8 +18,9 @@ const { clientIp, allowRequest, json, corsHeaders } = require("./lib/http-helper
 const MAX_BODY_BYTES = 4 * 1024 * 1024;
 const DEFAULT_MAX_PAGES = 35;
 
-/** Low-cost on AI Gateway (stretches free credits); good for JSON extraction. Override e.g. anthropic/claude-sonnet-4.6. */
+/** Low-cost; good for JSON extraction. Gateway-only models use provider prefix (e.g. anthropic/claude-…). */
 const DEFAULT_AI_GATEWAY_MODEL = "google/gemini-2.5-flash";
+const DEFAULT_GEMINI_MODEL = "gemini-2.5-flash";
 
 /**
  * pdf.js (bundled with pdf-parse v2) expects `DOMMatrix` / `Path2D` / `ImageData` on globalThis.
@@ -46,14 +49,36 @@ function ensurePdfCanvasGlobals() {
 }
 
 /**
- * AI SDK reads `AI_GATEWAY_API_KEY`. Netlify must expose the var to Functions (scope Functions or All).
+ * AI SDK Gateway reads `AI_GATEWAY_API_KEY`. Netlify must expose vars to Functions (scope Functions or All).
  * @returns {string} trimmed key or empty
  */
 function resolveAiGatewayApiKey() {
   const raw = process.env.AI_GATEWAY_API_KEY || process.env.AI_GATEWAY_KEY;
   if (raw == null) return "";
-  const v = String(raw).trim();
-  return v;
+  return String(raw).trim();
+}
+
+/** Google Generative AI (AI Studio); avoids Vercel AI Gateway billing requirements. */
+function resolveGoogleGenerativeAiKey() {
+  const raw = process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY;
+  if (raw == null) return "";
+  return String(raw).trim();
+}
+
+/**
+ * Model id for @ai-sdk/google. Uses GEMINI_MODEL, or strips `google/` from AI_GATEWAY_MODEL, or default.
+ * @returns {string}
+ */
+function resolveGeminiModelId() {
+  const direct = process.env.GEMINI_MODEL || process.env.GOOGLE_GENERATIVE_AI_MODEL;
+  if (direct != null && String(direct).trim()) {
+    return String(direct).trim();
+  }
+  const gatewayStyle = process.env.AI_GATEWAY_MODEL || DEFAULT_AI_GATEWAY_MODEL;
+  if (gatewayStyle.startsWith("google/")) {
+    return gatewayStyle.slice("google/".length);
+  }
+  return DEFAULT_GEMINI_MODEL;
 }
 
 function parseTransactionsFromModelText(raw) {
@@ -109,15 +134,18 @@ exports.handler = async (event) => {
       return json(429, event, { error: "Too many requests. Try again in a minute." });
     }
 
+    const googleKey = resolveGoogleGenerativeAiKey();
     const gatewayKey = resolveAiGatewayApiKey();
-    if (!gatewayKey) {
+    if (!googleKey && !gatewayKey) {
       return json(500, event, {
-        error: "Missing AI Gateway API key in the function runtime.",
+        error: "No AI credentials in the function runtime.",
         hint:
-          "Create a key in Vercel → AI Gateway (no app deploy required). In Netlify → Site configuration → Environment variables, add AI_GATEWAY_API_KEY (or AI_GATEWAY_KEY) and set scopes to include Functions or All — if the var is Builds-only, functions cannot read it. Save, then trigger a new deploy.",
+          "Option A — Google (no Vercel card): get an API key from Google AI Studio, add GOOGLE_GENERATIVE_AI_API_KEY or GEMINI_API_KEY in Netlify (Functions scope). Option B — Vercel AI Gateway: add AI_GATEWAY_API_KEY (may require a payment method on Vercel). Redeploy after saving env vars.",
       });
     }
-    process.env.AI_GATEWAY_API_KEY = gatewayKey;
+    if (gatewayKey) {
+      process.env.AI_GATEWAY_API_KEY = gatewayKey;
+    }
 
     let payload;
     try {
@@ -183,6 +211,7 @@ exports.handler = async (event) => {
     const truncatedText = text.length > maxChars;
 
     const gatewayModel = process.env.AI_GATEWAY_MODEL || DEFAULT_AI_GATEWAY_MODEL;
+    const geminiModelId = resolveGeminiModelId();
 
     const prompt = `You are parsing a bank or credit card statement (plain text extracted from a PDF).
 
@@ -203,10 +232,29 @@ ${excerpt}
 ---
 `;
 
-    const { text: modelText } = await generateText({
-      model: gatewayModel,
-      prompt,
-    });
+    let modelText;
+    let modelLabel;
+    let via;
+
+    if (googleKey) {
+      const { createGoogleGenerativeAI } = await import("@ai-sdk/google");
+      const googleProvider = createGoogleGenerativeAI({ apiKey: googleKey });
+      const gt = await generateText({
+        model: googleProvider(geminiModelId),
+        prompt,
+      });
+      modelText = gt.text;
+      modelLabel = geminiModelId;
+      via = "google-generative-ai";
+    } else {
+      const gt = await generateText({
+        model: gatewayModel,
+        prompt,
+      });
+      modelText = gt.text;
+      modelLabel = gatewayModel;
+      via = "vercel-ai-gateway";
+    }
 
     const transactions = parseTransactionsFromModelText(modelText);
 
@@ -215,17 +263,22 @@ ${excerpt}
       meta: {
         rawTextLength: text.length,
         textTruncatedForModel: truncatedText,
-        model: gatewayModel,
-        via: "vercel-ai-gateway",
+        model: modelLabel,
+        via,
         pagesReadCap: maxPages,
       },
     });
   } catch (e) {
     console.error("extract-bank-pdf", e);
     const msg = e.message || "Extraction failed";
-    const hint = /API key|Unauthorized|401|AI_GATEWAY|fetch failed/i.test(msg)
-      ? " Check AI_GATEWAY_API_KEY in Netlify matches your Vercel AI Gateway key."
-      : "";
+    let hint = "";
+    if (/credit card|add-credit-card|unlock your free credits/i.test(msg)) {
+      hint =
+        " Vercel AI Gateway requires a payment method on the Vercel account. Use Google AI Studio and set GOOGLE_GENERATIVE_AI_API_KEY (or GEMINI_API_KEY) in Netlify to call Gemini directly instead.";
+    } else if (/API key|Unauthorized|401|AI_GATEWAY|fetch failed|Generative Language|GOOGLE/i.test(msg)) {
+      hint =
+        " Check GOOGLE_GENERATIVE_AI_API_KEY / GEMINI_API_KEY or AI_GATEWAY_API_KEY in Netlify (Functions scope) and redeploy.";
+    }
     return json(500, event, { error: msg + hint });
   }
 };
