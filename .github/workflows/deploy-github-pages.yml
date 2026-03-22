@@ -5,11 +5,13 @@
 #   Secrets → Repository secrets:
 #     SF_CLIENT_ID     — Connected App Consumer Key (PKCE public client; value is not sensitive but often stored as secret)
 #   Variables → Repository variables:
-#     SF_LOGIN_URL     — e.g. https://login.salesforce.com (or test / My Domain login URL)
+#     SF_INSTANCE_URL  — primary: your org host for OAuth + config (e.g. https://MyDomain.my.salesforce.com), no trailing slash
+#     SF_LOGIN_URL     — fallback if SF_INSTANCE_URL unset (e.g. https://login.salesforce.com)
+#     SF_LOGIN_HOST    — second fallback (same intent as SF_LOGIN_URL)
 #     SF_API_VERSION   — optional, default v63.0
-#   Fallbacks: SF_CLIENT_ID may instead be a variable; SF_LOGIN_HOST is accepted if SF_LOGIN_URL is unset.
+#   Fallbacks: SF_CLIENT_ID may instead be a variable.
 # Do NOT put SF_CLIENT_SECRET into the static site — PKCE browser apps must not ship a client secret.
-# SF_INSTANCE_URL is not written to sf-config.js; the token response already provides instance_url for API calls.
+# REST calls still use instance_url from the token response; SF_INSTANCE_URL here sets loginHost for /services/oauth2/* only.
 # Connected App callback URLs must match each page used to start login; enable CORS for the Pages origin.
 # We omit actions/configure-pages (avoids 404 before Pages is enabled).
 name: Deploy to GitHub Pages
@@ -44,6 +46,7 @@ jobs:
         env:
           SF_CLIENT_ID_SECRET: ${{ secrets.SF_CLIENT_ID }}
           SF_CLIENT_ID_VAR: ${{ vars.SF_CLIENT_ID }}
+          SF_INSTANCE_URL: ${{ vars.SF_INSTANCE_URL }}
           SF_LOGIN_URL: ${{ vars.SF_LOGIN_URL }}
           SF_LOGIN_HOST: ${{ vars.SF_LOGIN_HOST }}
           SF_API_VERSION: ${{ vars.SF_API_VERSION }}
@@ -53,6 +56,7 @@ jobs:
           const path = "external-form-sample/public/js/sf-config.js";
           const clientId = (process.env.SF_CLIENT_ID_SECRET || process.env.SF_CLIENT_ID_VAR || "").trim();
           const loginHost = (
+            process.env.SF_INSTANCE_URL ||
             process.env.SF_LOGIN_URL ||
             process.env.SF_LOGIN_HOST ||
             "https://login.salesforce.com"
@@ -66,7 +70,7 @@ jobs:
             apiVersion: apiVersion.indexOf("v") === 0 ? apiVersion : "v" + apiVersion,
           };
           const body =
-            "/** Generated in CI from secrets.SF_CLIENT_ID / vars.SF_LOGIN_URL (or SF_LOGIN_HOST) / vars.SF_API_VERSION. */\n" +
+            "/** Generated in CI from secrets.SF_CLIENT_ID / vars.SF_INSTANCE_URL (or SF_LOGIN_URL / SF_LOGIN_HOST) / vars.SF_API_VERSION. */\n" +
             "(function(){window.__EXPENSE_SF_CONFIG__=" +
             JSON.stringify(cfg) +
             ";})();\n";
