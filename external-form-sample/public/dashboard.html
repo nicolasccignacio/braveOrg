@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Expense dashboard</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+      }
+      body {
+        font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+        max-width: min(100%, 52rem);
+        margin: 2rem auto;
+        padding: 0 1rem;
+        line-height: 1.45;
+      }
+      h1 {
+        font-size: 1.35rem;
+        font-weight: 650;
+        margin: 0;
+      }
+      .page-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+      }
+      .site-nav {
+        font-size: 0.9rem;
+        margin-bottom: 0.35rem;
+      }
+      .site-nav a {
+        color: inherit;
+        margin-right: 1rem;
+      }
+      .site-nav a[aria-current="page"] {
+        font-weight: 650;
+        text-decoration: none;
+      }
+      #btnRefreshDashboard {
+        padding: 0.45rem 0.9rem;
+        font: inherit;
+        cursor: pointer;
+        border-radius: 6px;
+        border: 1px solid rgba(127, 127, 127, 0.45);
+        background: canvas;
+        color: canvastext;
+      }
+      #btnRefreshDashboard:hover {
+        background: rgba(127, 127, 127, 0.1);
+      }
+      .dashboard-meta {
+        font-size: 0.8rem;
+        opacity: 0.85;
+        margin: 0 0 0.75rem;
+      }
+      .dashboard-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+        gap: 0.65rem;
+        margin-bottom: 1rem;
+      }
+      .stat-card {
+        border: 1px solid rgba(127, 127, 127, 0.35);
+        border-radius: 8px;
+        padding: 0.65rem 0.75rem;
+        background: rgba(127, 127, 127, 0.06);
+      }
+      .stat-card .stat-value {
+        display: block;
+        font-size: 1.35rem;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+      }
+      .stat-card .stat-label {
+        font-size: 0.78rem;
+        font-weight: 600;
+        opacity: 0.85;
+      }
+      .dashboard-charts {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1.25rem;
+      }
+      @media (min-width: 44rem) {
+        .dashboard-charts {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+      .chart-card {
+        border: 1px solid rgba(127, 127, 127, 0.35);
+        border-radius: 8px;
+        padding: 0.65rem 0.75rem 0.5rem;
+        background: rgba(127, 127, 127, 0.04);
+      }
+      .chart-card h2 {
+        margin: 0 0 0.5rem;
+        font-size: 0.95rem;
+        font-weight: 650;
+      }
+      .chart-canvas-wrap {
+        position: relative;
+        height: 220px;
+      }
+      .dashboard-status {
+        font-size: 0.8rem;
+        margin-top: 0.75rem;
+        color: crimson;
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="site-nav" aria-label="Site">
+      <a href="index.html">Create expense</a>
+      <a href="dashboard.html" aria-current="page">Dashboard</a>
+    </nav>
+
+    <div class="page-head">
+      <h1>Dashboard</h1>
+      <button type="button" id="btnRefreshDashboard">Refresh</button>
+    </div>
+
+    <p id="dashboardMeta" class="dashboard-meta" aria-live="polite"></p>
+    <div class="dashboard-stats">
+      <div class="stat-card">
+        <span class="stat-value" id="dashCount">—</span>
+        <span class="stat-label">Expenses (in sample)</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-value" id="dashTotal">—</span>
+        <span class="stat-label">Total amount (price × qty)</span>
+      </div>
+    </div>
+    <div class="dashboard-charts">
+      <div class="chart-card">
+        <h2>Amount by month</h2>
+        <div class="chart-canvas-wrap">
+          <canvas id="chartMonth" width="400" height="220" aria-label="Amount by month"></canvas>
+        </div>
+      </div>
+      <div class="chart-card">
+        <h2>Top items by amount</h2>
+        <div class="chart-canvas-wrap">
+          <canvas id="chartItems" width="400" height="220" aria-label="Top items by amount"></canvas>
+        </div>
+      </div>
+    </div>
+    <p id="dashboardMsg" class="dashboard-status" role="status" aria-live="polite"></p>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" crossorigin="anonymous"></script>
+    <script>
+      (function () {
+        let chartMonth = null;
+        let chartItems = null;
+
+        function destroyDashboardCharts() {
+          if (chartMonth) {
+            chartMonth.destroy();
+            chartMonth = null;
+          }
+          if (chartItems) {
+            chartItems.destroy();
+            chartItems = null;
+          }
+        }
+
+        function dashboardChartTheme() {
+          const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+          return {
+            text: dark ? "#e4e4e4" : "#222",
+            grid: dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)",
+            fillLine: dark ? "rgba(100, 181, 246, 0.35)" : "rgba(25, 118, 210, 0.22)",
+            strokeLine: dark ? "rgb(129, 212, 250)" : "rgb(25, 118, 210)",
+            bar: dark ? "rgba(165, 214, 167, 0.9)" : "rgba(56, 142, 60, 0.85)",
+          };
+        }
+
+        function fmtMoney(n) {
+          const x = Number(n);
+          if (!Number.isFinite(x)) return "—";
+          return x.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        async function loadDashboard() {
+          const dashboardMsg = document.getElementById("dashboardMsg");
+          const dashboardMeta = document.getElementById("dashboardMeta");
+          const dashCount = document.getElementById("dashCount");
+          const dashTotal = document.getElementById("dashTotal");
+          const btn = document.getElementById("btnRefreshDashboard");
+          dashboardMsg.textContent = "";
+          btn.disabled = true;
+
+          if (typeof Chart === "undefined") {
+            dashboardMsg.textContent = "Chart library failed to load.";
+            btn.disabled = false;
+            return;
+          }
+
+          try {
+            const r = await fetch("/.netlify/functions/expense-dashboard?limit=500");
+            const data = await r.json().catch(() => ({}));
+            if (!r.ok) {
+              dashboardMsg.textContent = data.error || JSON.stringify(data);
+              destroyDashboardCharts();
+              dashCount.textContent = "—";
+              dashTotal.textContent = "—";
+              dashboardMeta.textContent = "";
+              return;
+            }
+
+            const meta = data.meta || {};
+            dashboardMeta.textContent =
+              "Based on the " +
+              (meta.recordCount != null ? meta.recordCount : "—") +
+              " most recently created expenses (query limit " +
+              (meta.queryLimit != null ? meta.queryLimit : "—") +
+              "). Month uses expense date when set, otherwise created date.";
+
+            const t = data.totals || {};
+            dashCount.textContent = String(t.expenseCount != null ? t.expenseCount : 0);
+            dashTotal.textContent = fmtMoney(t.amountSum != null ? t.amountSum : 0);
+
+            const byMonth = Array.isArray(data.byMonth) ? data.byMonth : [];
+            const byItem = Array.isArray(data.byItem) ? data.byItem : [];
+            const th = dashboardChartTheme();
+
+            destroyDashboardCharts();
+
+            const elM = document.getElementById("chartMonth");
+            const elI = document.getElementById("chartItems");
+            if (!elM || !elI) return;
+
+            const monthLabels = byMonth.length ? byMonth.map((x) => x.label) : ["No data"];
+            const monthData = byMonth.length ? byMonth.map((x) => x.total) : [0];
+
+            chartMonth = new Chart(elM, {
+              type: "line",
+              data: {
+                labels: monthLabels,
+                datasets: [
+                  {
+                    label: "Amount",
+                    data: monthData,
+                    fill: true,
+                    tension: 0.25,
+                    backgroundColor: th.fillLine,
+                    borderColor: th.strokeLine,
+                    borderWidth: 2,
+                  },
+                ],
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                  x: {
+                    ticks: { color: th.text, maxRotation: 45, minRotation: 0 },
+                    grid: { color: th.grid },
+                  },
+                  y: {
+                    ticks: { color: th.text },
+                    grid: { color: th.grid },
+                  },
+                },
+              },
+            });
+
+            const itemLabels = byItem.length ? byItem.map((x) => x.name) : ["No data"];
+            const itemData = byItem.length ? byItem.map((x) => x.total) : [0];
+
+            chartItems = new Chart(elI, {
+              type: "bar",
+              data: {
+                labels: itemLabels,
+                datasets: [
+                  {
+                    label: "Amount",
+                    data: itemData,
+                    backgroundColor: th.bar,
+                  },
+                ],
+              },
+              options: {
+                indexAxis: "y",
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                  x: {
+                    ticks: { color: th.text },
+                    grid: { color: th.grid },
+                  },
+                  y: {
+                    ticks: { color: th.text, autoSkip: false, font: { size: 11 } },
+                    grid: { display: false },
+                  },
+                },
+              },
+            });
+          } catch (err) {
+            dashboardMsg.textContent = String(err.message || err);
+            destroyDashboardCharts();
+          } finally {
+            btn.disabled = false;
+          }
+        }
+
+        document.getElementById("btnRefreshDashboard").addEventListener("click", () => {
+          loadDashboard();
+        });
+
+        window.addEventListener("DOMContentLoaded", () => {
+          loadDashboard();
+        });
+      })();
+    </script>
+  </body>
+</html>
