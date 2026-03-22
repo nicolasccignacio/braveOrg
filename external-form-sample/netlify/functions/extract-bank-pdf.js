@@ -9,6 +9,8 @@
  * Optional: AI_GATEWAY_MODEL (default google/gemini-2.5-flash), PDF_MAX_PAGES
  */
 
+const { pathToFileURL } = require("url");
+
 const { clientIp, allowRequest, json, corsHeaders } = require("./lib/http-helpers");
 
 const MAX_BODY_BYTES = 4 * 1024 * 1024;
@@ -144,6 +146,10 @@ exports.handler = async (event) => {
 
     ensurePdfCanvasGlobals();
     const { PDFParse } = await import("pdf-parse");
+    // pdf.js fake worker uses dynamic import(workerSrc); Netlify may omit pdf.worker.mjs unless pdfjs-dist is external + included.
+    const workerFsPath = require.resolve("pdfjs-dist/legacy/build/pdf.worker.mjs");
+    PDFParse.setWorker(pathToFileURL(workerFsPath).href);
+
     const { generateText } = await import("ai");
 
     const parser = new PDFParse({ data: buf });
