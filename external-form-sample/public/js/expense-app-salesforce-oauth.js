@@ -9,6 +9,15 @@
     return PREFIX + k;
   }
 
+  function deployConfig() {
+    var c = window.__EXPENSE_SF_CONFIG__;
+    return c && typeof c === "object" ? c : {};
+  }
+
+  function strTrim(v) {
+    return v != null ? String(v).trim() : "";
+  }
+
   function genCodeVerifier() {
     var pool = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~";
     var out = "";
@@ -35,13 +44,26 @@
     return window.location.href.split("#")[0].split("?")[0];
   }
 
-  function parseStoredLoginHost() {
-    var h = (localStorage.getItem(storageKey("login_host")) || "https://login.salesforce.com").trim();
+  function normalizeLoginHost(h) {
+    h = strTrim(h) || "https://login.salesforce.com";
     if (!/^https:\/\//i.test(h)) h = "https://" + h.replace(/^\/+/, "");
     return h.replace(/\/$/, "");
   }
 
+  function parseStoredLoginHost() {
+    var d = strTrim(deployConfig().loginHost);
+    if (d) return normalizeLoginHost(d);
+    return normalizeLoginHost(localStorage.getItem(storageKey("login_host")) || "");
+  }
+
   window.SFExpenseSession = {
+    /** True when this build has a Consumer Key (from deploy config or legacy localStorage). */
+    hasOAuthClientConfigured: function () {
+      var d = strTrim(deployConfig().clientId);
+      if (d) return true;
+      return !!strTrim(localStorage.getItem(storageKey("client_id")));
+    },
+
     getLoginHost: function () {
       return parseStoredLoginHost();
     },
@@ -52,7 +74,9 @@
     },
 
     getClientId: function () {
-      return (localStorage.getItem(storageKey("client_id")) || "").trim();
+      var d = strTrim(deployConfig().clientId);
+      if (d) return d;
+      return strTrim(localStorage.getItem(storageKey("client_id")));
     },
 
     setClientId: function (id) {
@@ -60,7 +84,8 @@
     },
 
     getApiVersion: function () {
-      var v = (localStorage.getItem(storageKey("api_version")) || "v63.0").trim();
+      var d = strTrim(deployConfig().apiVersion);
+      var v = d || strTrim(localStorage.getItem(storageKey("api_version"))) || "v63.0";
       return v.indexOf("v") === 0 ? v : "v" + v;
     },
 
@@ -127,7 +152,11 @@
 
     beginOAuth: async function () {
       var clientId = this.getClientId();
-      if (!clientId) throw new Error("Enter the Connected App Consumer Key (Client ID).");
+      if (!clientId) {
+        throw new Error(
+          "Salesforce sign-in is not configured for this site. The operator must set repository variables (SF_CLIENT_ID, etc.) or ship sf-config.js with a Client ID."
+        );
+      }
 
       localStorage.removeItem(storageKey("force_browser"));
 

@@ -1,6 +1,16 @@
 # Publishes external-form-sample/public to GitHub Pages (static UI; data in browser localStorage).
 #
 # One-time: Repo → Settings → Pages → Source: "GitHub Actions" → Save.
+# Optional Salesforce (no end-user typing), read at deploy time only:
+#   Secrets → Repository secrets:
+#     SF_CLIENT_ID     — Connected App Consumer Key (PKCE public client; value is not sensitive but often stored as secret)
+#   Variables → Repository variables:
+#     SF_LOGIN_URL     — e.g. https://login.salesforce.com (or test / My Domain login URL)
+#     SF_API_VERSION   — optional, default v63.0
+#   Fallbacks: SF_CLIENT_ID may instead be a variable; SF_LOGIN_HOST is accepted if SF_LOGIN_URL is unset.
+# Do NOT put SF_CLIENT_SECRET into the static site — PKCE browser apps must not ship a client secret.
+# SF_INSTANCE_URL is not written to sf-config.js; the token response already provides instance_url for API calls.
+# Connected App callback URLs must match each page used to start login; enable CORS for the Pages origin.
 # We omit actions/configure-pages (avoids 404 before Pages is enabled).
 name: Deploy to GitHub Pages
 
@@ -29,6 +39,39 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Write js/sf-config.js from Actions secrets/variables
+        env:
+          SF_CLIENT_ID_SECRET: ${{ secrets.SF_CLIENT_ID }}
+          SF_CLIENT_ID_VAR: ${{ vars.SF_CLIENT_ID }}
+          SF_LOGIN_URL: ${{ vars.SF_LOGIN_URL }}
+          SF_LOGIN_HOST: ${{ vars.SF_LOGIN_HOST }}
+          SF_API_VERSION: ${{ vars.SF_API_VERSION }}
+        run: |
+          node <<'NODE'
+          const fs = require("fs");
+          const path = "external-form-sample/public/js/sf-config.js";
+          const clientId = (process.env.SF_CLIENT_ID_SECRET || process.env.SF_CLIENT_ID_VAR || "").trim();
+          const loginHost = (
+            process.env.SF_LOGIN_URL ||
+            process.env.SF_LOGIN_HOST ||
+            "https://login.salesforce.com"
+          )
+            .trim()
+            .replace(/\/$/, "");
+          const apiVersion = (process.env.SF_API_VERSION || "v63.0").trim() || "v63.0";
+          const cfg = {
+            clientId,
+            loginHost: loginHost || "https://login.salesforce.com",
+            apiVersion: apiVersion.indexOf("v") === 0 ? apiVersion : "v" + apiVersion,
+          };
+          const body =
+            "/** Generated in CI from secrets.SF_CLIENT_ID / vars.SF_LOGIN_URL (or SF_LOGIN_HOST) / vars.SF_API_VERSION. */\n" +
+            "(function(){window.__EXPENSE_SF_CONFIG__=" +
+            JSON.stringify(cfg) +
+            ";})();\n";
+          fs.writeFileSync(path, body, "utf8");
+          NODE
 
       - uses: actions/upload-pages-artifact@v3
         with:

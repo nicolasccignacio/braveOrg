@@ -30,20 +30,12 @@
     <main class="md-main md-container">
     <h1 class="md-display-small">Create expense</h1>
     <p id="modeHint" class="hint md-body-text" style="margin-top: -0.25rem"></p>
-    <details class="md-disclosure hint">
-      <summary>Salesforce (standard REST API)</summary>
-      <p>
-        Use a <strong>Connected App</strong> with OAuth enabled, flow <strong>Authorization Code with PKCE</strong>, callback URL
-        exactly this page’s URL (no query string). Add this site’s origin under <strong>Setup → Security → Trusted URLs /
-        CORS</strong> if the browser blocks calls. Scopes: <code>api</code> and <code>refresh_token</code>.
+    <details class="md-disclosure hint" id="sfConnectPanel">
+      <summary>Salesforce</summary>
+      <p id="sfDeployHint" class="md-body-text" style="margin-bottom: 0.75rem">
+        Sign in to use your org’s data. Login URL, Client ID, and API version are set when the site is built (not here).
       </p>
-      <label for="sfLoginHost">Login URL</label>
-      <input id="sfLoginHost" type="url" placeholder="https://login.salesforce.com" autocomplete="off" />
-      <label for="sfClientId">Consumer Key (Client ID)</label>
-      <input id="sfClientId" type="text" placeholder="Connected App consumer key" autocomplete="off" spellcheck="false" />
-      <label for="sfApiVersion">API version</label>
-      <input id="sfApiVersion" type="text" placeholder="v63.0" autocomplete="off" />
-      <p style="margin-top: 0.75rem; display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center">
+      <p style="margin: 0; display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center">
         <button type="button" id="btnSfConnect" class="md-btn md-btn--filled">Connect with Salesforce</button>
         <button type="button" id="btnSfDisconnect" class="md-btn md-btn--outlined">Disconnect</button>
         <button type="button" id="btnSfBrowserOnly" class="md-btn md-btn--outlined">Use browser only</button>
@@ -181,6 +173,7 @@
     </main>
 
     <script src="js/expense-app-local.js"></script>
+    <script src="js/sf-config.js"></script>
     <script src="js/expense-app-salesforce-oauth.js"></script>
     <script src="js/expense-app-salesforce-rest.js"></script>
     <script src="js/expense-app-mode.js"></script>
@@ -195,7 +188,7 @@
           if (modeHint) {
             modeHint.innerHTML = sf
               ? "<strong>Salesforce:</strong> standard REST API against <code>Item__c</code> and <code>Expense_Item_Price__c</code> (as your signed-in user)."
-              : "<strong>Browser-only:</strong> data in <code>localStorage</code> on this device. Connect to Salesforce above to use your org.";
+              : "<strong>Browser-only:</strong> data in <code>localStorage</code> on this device. Use <strong>Salesforce → Connect</strong> above to use your org.";
           }
           if (dataHint) {
             dataHint.innerHTML = sf
@@ -209,19 +202,22 @@
           }
         }
 
-        const sfLoginHost = document.getElementById("sfLoginHost");
-        const sfClientId = document.getElementById("sfClientId");
-        const sfApiVersion = document.getElementById("sfApiVersion");
-        if (sfLoginHost && window.SFExpenseSession) {
-          sfLoginHost.value = SFExpenseSession.getLoginHost();
-          sfClientId.value = SFExpenseSession.getClientId();
-          sfApiVersion.value = SFExpenseSession.getApiVersion();
+        function refreshSfDeployHint() {
+          var el = document.getElementById("sfDeployHint");
+          var btn = document.getElementById("btnSfConnect");
+          if (!window.SFExpenseSession) return;
+          var ok = SFExpenseSession.hasOAuthClientConfigured();
+          if (el) {
+            el.textContent = ok
+              ? "Sign in to use your org’s data. Login URL, Client ID, and API version are set when the site is built."
+              : "This build has no Salesforce Client ID yet. For GitHub Pages, set repository variables SF_CLIENT_ID (and optionally SF_LOGIN_HOST, SF_API_VERSION) before deploy, or edit public/js/sf-config.js for local use.";
+          }
+          if (btn) btn.disabled = !ok;
         }
+        refreshSfDeployHint();
+
         document.getElementById("btnSfConnect").addEventListener("click", async function () {
           if (!window.SFExpenseSession) return;
-          SFExpenseSession.setLoginHost(sfLoginHost.value);
-          SFExpenseSession.setClientId(sfClientId.value);
-          SFExpenseSession.setApiVersion(sfApiVersion.value);
           try {
             await SFExpenseSession.beginOAuth();
           } catch (e) {
