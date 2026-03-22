@@ -1,6 +1,12 @@
 # Publishes external-form-sample/public to GitHub Pages (static HTML only).
-# Functions still run on Netlify: set repository Variable NETLIFY_SITE_URL to your site origin
-# (no trailing slash), e.g. https://your-app.netlify.app — then enable Pages → Source: GitHub Actions.
+#
+# One-time setup (or deploy will fail):
+#   1. Repo → Settings → Pages → Build and deployment → Source: "GitHub Actions" → Save.
+#   2. Optional: Settings → Secrets and variables → Actions → Variables → NETLIFY_SITE_URL
+#      (e.g. https://your-app.netlify.app, no trailing slash) for API calls from Pages to Netlify.
+#
+# We omit actions/configure-pages — it calls GET /repos/.../pages and returns 404 until step 1 is done;
+# plain static sites do not need it (upload-pages-artifact + deploy-pages are enough).
 name: Deploy to GitHub Pages
 
 on:
@@ -42,8 +48,6 @@ jobs:
             "window.__NETLIFY_API_ORIGIN__ = " + JSON.stringify(o) + ";\n"
           );
           NODE
-
-      - uses: actions/configure-pages@v5
 
       - uses: actions/upload-pages-artifact@v3
         with:
