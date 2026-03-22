@@ -1,12 +1,7 @@
-# Publishes external-form-sample/public to GitHub Pages (static HTML only).
+# Publishes external-form-sample/public to GitHub Pages (fully static app: localStorage + optional browser Gemini).
 #
-# One-time setup (or deploy will fail):
-#   1. Repo → Settings → Pages → Build and deployment → Source: "GitHub Actions" → Save.
-#   2. Optional: Settings → Secrets and variables → Actions → Variables → NETLIFY_SITE_URL
-#      (e.g. https://your-app.netlify.app, no trailing slash) for API calls from Pages to Netlify.
-#
-# We omit actions/configure-pages — it calls GET /repos/.../pages and returns 404 until step 1 is done;
-# plain static sites do not need it (upload-pages-artifact + deploy-pages are enough).
+# One-time: Repo → Settings → Pages → Source: "GitHub Actions" → Save.
+# We omit actions/configure-pages (unnecessary for static upload; avoids 404 before Pages is enabled).
 name: Deploy to GitHub Pages
 
 on:
@@ -34,20 +29,6 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-
-      - name: Write js/api-origin.js for cross-origin Netlify API
-        env:
-          NETLIFY_SITE_URL: ${{ vars.NETLIFY_SITE_URL }}
-        run: |
-          node <<'NODE'
-          const fs = require("fs");
-          const file = "external-form-sample/public/js/api-origin.js";
-          const o = (process.env.NETLIFY_SITE_URL || "").trim().replace(/\/$/, "");
-          fs.writeFileSync(
-            file,
-            "window.__NETLIFY_API_ORIGIN__ = " + JSON.stringify(o) + ";\n"
-          );
-          NODE
 
       - uses: actions/upload-pages-artifact@v3
         with:

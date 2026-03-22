@@ -1,6 +1,6 @@
 # Deploy the expense form from this monorepo (Salesforce project + external-form-sample).
 # Netlify UI can instead set "Base directory" to external-form-sample and omit this file.
-# Static mirror: .github/workflows/deploy-github-pages.yml (set repo Variable NETLIFY_SITE_URL for API calls).
+# Static mirror: .github/workflows/deploy-github-pages.yml (same public/ folder; Pages build is fully client-side).
 #
 # Skip the build (saves build minutes) when this push only changes files outside the site folder.
 # Runs from repo root; exit 0 = cancel build. See https://docs.netlify.com/configure-builds/ignore-builds/

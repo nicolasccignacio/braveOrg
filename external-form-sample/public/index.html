@@ -301,6 +301,10 @@
     </nav>
 
     <h1>Create expense</h1>
+    <p class="hint" style="font-size: 0.88rem; margin-top: -0.25rem">
+      <strong>GitHub Pages mode:</strong> items and expenses live in this browser only (<code>localStorage</code>). Use
+      <strong>Export data</strong> below to back up. Nothing is sent to Netlify or Salesforce.
+    </p>
 
     <h2>Expense</h2>
     <form id="f" novalidate>
@@ -366,7 +370,7 @@
       <label for="referencia">Referencia</label>
       <input id="referencia" name="referencia" type="text" />
 
-      <button type="submit">Create in Salesforce</button>
+      <button type="submit">Save expense</button>
     </form>
     <div id="out" role="status"></div>
 
@@ -392,6 +396,18 @@
     </div>
     <p id="historyMsg" class="history-status" role="status" aria-live="polite"></p>
 
+    <h2>Your data</h2>
+    <p class="hint" style="font-size: 0.85rem">
+      Export a JSON backup or import a file (replaces all items and expenses in this browser).
+    </p>
+    <p>
+      <button type="button" id="btnExportData">Export data</button>
+      <label style="display: inline-block; margin-left: 0.75rem; font-size: 0.9rem">
+        Import backup
+        <input type="file" id="importDataFile" accept="application/json,.json" style="display: block; margin-top: 0.35rem" />
+      </label>
+    </p>
+
     <dialog id="editExpenseDialog" class="edit-dialog" aria-labelledby="editExpenseTitle">
       <h3 id="editExpenseTitle">Edit expense</h3>
       <p id="editExpenseMeta" class="edit-meta"></p>
@@ -414,8 +430,7 @@
       <p id="editExpenseErr" class="history-status" role="status"></p>
     </dialog>
 
-    <script src="js/api-origin.js"></script>
-    <script src="js/netlify-api-base.js"></script>
+    <script src="js/expense-app-local.js"></script>
     <script>
       (function () {
         const form = document.getElementById("f");
@@ -605,23 +620,15 @@
         async function remoteItemSearch(q) {
           const seq = ++remoteSearchSeq;
           try {
-            const url =
-              netlifyFunctionsUrl("search-items?q=" + encodeURIComponent(q) + "&limit=150");
-            const r = await fetch(url);
-            const data = await r.json().catch(() => ({}));
+            const data = await window.ExpenseAppLocal.searchItems(q, 150);
             if (seq !== remoteSearchSeq) return;
-            if (!r.ok) {
-              renderListbox([], data.error || "Search failed.");
-              openListbox();
-              return;
-            }
             const found = (Array.isArray(data.records) ? data.records : []).map(rowToItem);
             mergeItemsIntoCache(found);
             renderListbox(found, found.length ? "" : "No matching items.");
             openListbox();
           } catch (e) {
             if (seq !== remoteSearchSeq) return;
-            renderListbox([], String(e.message || e));
+            renderListbox([], String(e.message || e || "Search failed."));
             openListbox();
           }
         }
@@ -693,23 +700,7 @@
           itemSearch.placeholder = "Loading items…";
           closeListbox();
 
-          const url = netlifyFunctionsUrl("search-items?q=&limit=2000");
-          const r = await fetch(url);
-          const text = await r.text();
-          let data;
-          try {
-            data = JSON.parse(text);
-          } catch {
-            throw new Error("Bad response (not JSON). " + text.slice(0, 160));
-          }
-          if (!r.ok) {
-            console.error("search-items", r.status, data);
-            const parts = [data.error || "Load failed (" + r.status + ")"];
-            if (data.hint) parts.push(data.hint);
-            if (data.details != null) parts.push(JSON.stringify(data.details).slice(0, 600));
-            throw new Error(parts.join("\n"));
-          }
-
+          const data = await window.ExpenseAppLocal.searchItems("", 2000);
           const records = Array.isArray(data.records) ? data.records : [];
           itemsCache = records.map(rowToItem);
 
@@ -805,19 +796,10 @@
           if (!confirm("Delete this expense? This cannot be undone.")) return;
           historyMsg.textContent = "";
           try {
-            const r = await fetch(netlifyFunctionsUrl("delete-expense"), {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ recordId: row.id, website: "" }),
-            });
-            const data = await r.json().catch(() => ({}));
-            if (!r.ok) {
-              historyMsg.textContent = data.error || JSON.stringify(data);
-              return;
-            }
+            await window.ExpenseAppLocal.deleteExpense({ recordId: row.id, website: "" });
             await loadHistory();
           } catch (err) {
-            historyMsg.textContent = String(err);
+            historyMsg.textContent = String(err.message || err);
           }
         }
 
@@ -825,19 +807,7 @@
           historyMsg.textContent = "";
           historyBody.innerHTML = "<tr><td colspan='6'>Loading…</td></tr>";
           try {
-            const r = await fetch(netlifyFunctionsUrl("list-history?limit=50"));
-            const text = await r.text();
-            let data;
-            try {
-              data = JSON.parse(text);
-            } catch {
-              throw new Error(text.slice(0, 200));
-            }
-            if (!r.ok) {
-              const parts = [data.error || "History failed"];
-              if (data.details) parts.push(JSON.stringify(data.details).slice(0, 400));
-              throw new Error(parts.join(" "));
-            }
+            const data = await window.ExpenseAppLocal.listHistory(50);
             const records = Array.isArray(data.records) ? data.records : [];
             if (!records.length) {
               historyBody.innerHTML = "<tr><td colspan='6'>No rows yet.</td></tr>";
@@ -920,23 +890,43 @@
               cuotas: editCuotas.value,
               referencia: editReferencia.value.trim() || null,
             };
-            const r = await fetch(netlifyFunctionsUrl("update-expense"), {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(payload),
-            });
-            const data = await r.json().catch(() => ({}));
-            if (!r.ok) {
-              editExpenseErr.textContent = data.error || JSON.stringify(data);
-              return;
-            }
+            await window.ExpenseAppLocal.updateExpense(payload);
             editExpenseDialog.close();
             editingRecordId = null;
             await loadHistory();
           } catch (err) {
-            editExpenseErr.textContent = String(err);
+            editExpenseErr.textContent = String(err.message || err);
           } finally {
             editExpenseSave.disabled = false;
+          }
+        });
+
+        document.getElementById("btnExportData").addEventListener("click", function () {
+          const json = window.ExpenseAppLocal.exportAll();
+          const blob = new Blob([json], { type: "application/json" });
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(blob);
+          a.download = "expense-app-backup.json";
+          a.click();
+          URL.revokeObjectURL(a.href);
+        });
+
+        document.getElementById("importDataFile").addEventListener("change", async function (ev) {
+          const f = ev.target.files && ev.target.files[0];
+          ev.target.value = "";
+          if (!f) return;
+          out.className = "msg";
+          out.textContent = "";
+          try {
+            const text = await f.text();
+            await window.ExpenseAppLocal.importAll(text);
+            out.classList.add("ok");
+            out.textContent = "Backup imported. Lists refreshed.";
+            await loadAllItems();
+            loadHistory();
+          } catch (err) {
+            out.classList.add("err");
+            out.textContent = "Import failed: " + (err.message || err);
           }
         });
 
@@ -971,16 +961,7 @@
           }
           btnQuickCreateItem.disabled = true;
           try {
-            const r = await fetch(netlifyFunctionsUrl("create-item"), {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ name: name }),
-            });
-            const data = await r.json().catch(() => ({}));
-            if (!r.ok) {
-              setQuickItemMsg("err", data.error || JSON.stringify(data));
-              return;
-            }
+            const data = await window.ExpenseAppLocal.createItem(name);
             quickItemName.value = "";
             setQuickItemMsg("ok", "Created.");
             quickItemPanel.hidden = true;
@@ -1029,28 +1010,18 @@
           }
 
           try {
-            const r = await fetch(netlifyFunctionsUrl("submit-expense"), {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(payload),
-            });
-            const data = await r.json().catch(() => ({}));
-            if (r.ok) {
-              out.classList.add("ok");
-              out.textContent = "Expense saved.";
-              form.reset();
-              setFormDefaults();
-              clearItemPicker();
-              clearItemStatus();
-              loadAllItems().catch(() => {});
-              loadHistory();
-            } else {
-              out.classList.add("err");
-              out.textContent = data.error || JSON.stringify(data);
-            }
+            await window.ExpenseAppLocal.submitExpense(payload);
+            out.classList.add("ok");
+            out.textContent = "Expense saved locally.";
+            form.reset();
+            setFormDefaults();
+            clearItemPicker();
+            clearItemStatus();
+            loadAllItems().catch(() => {});
+            loadHistory();
           } catch (err) {
             out.classList.add("err");
-            out.textContent = String(err);
+            out.textContent = String(err.message || err);
           }
         });
       })();

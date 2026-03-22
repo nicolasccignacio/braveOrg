@@ -5,7 +5,7 @@
   "engines": {
     "node": ">=20"
   },
-  "description": "Netlify site (public/) + Netlify Functions; bank PDF AI via Google AI Studio or Vercel AI Gateway.",
+  "description": "Static expense UI (localStorage) + optional browser PDF/Gemini; Netlify functions in repo remain for optional Salesforce backend.",
   "dependencies": {
     "@ai-sdk/google": "^3.0.52",
     "@napi-rs/canvas": "0.1.80",

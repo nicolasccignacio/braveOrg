@@ -153,9 +153,11 @@
       </div>
     </div>
     <p id="dashboardMsg" class="dashboard-status" role="status" aria-live="polite"></p>
+    <p class="hint" style="font-size: 0.85rem; max-width: 42rem">
+      Charts use expenses stored in this browser (<code>localStorage</code>), same as the main form — no server.
+    </p>
 
-    <script src="js/api-origin.js"></script>
-    <script src="js/netlify-api-base.js"></script>
+    <script src="js/expense-app-local.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" crossorigin="anonymous"></script>
     <script>
       (function () {
@@ -206,17 +208,7 @@
           }
 
           try {
-            const r = await fetch(netlifyFunctionsUrl("expense-dashboard"));
-            const data = await r.json().catch(() => ({}));
-            if (!r.ok) {
-              dashboardMsg.textContent = data.error || JSON.stringify(data);
-              destroyDashboardCharts();
-              dashCount.textContent = "—";
-              dashTotal.textContent = "—";
-              dashboardMeta.textContent = "";
-              return;
-            }
-
+            const data = await window.ExpenseAppLocal.dashboard(2000);
             const meta = data.meta || {};
             dashboardMeta.textContent =
               "Based on up to " +

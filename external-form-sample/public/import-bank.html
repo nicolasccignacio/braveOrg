@@ -43,6 +43,8 @@
         font-size: 0.9rem;
       }
       input[type="url"],
+      input[type="password"],
+      input[type="text"],
       input[type="file"] {
         width: 100%;
         box-sizing: border-box;
@@ -143,61 +145,30 @@
 
     <h1>Import bank statement (PDF)</h1>
     <p class="hint">
-      Text-based PDFs only (not scanned images). Results are AI-generated — always verify amounts against your
-      statement before recording them anywhere.
+      <strong>Browser-only:</strong> PDF text is extracted with pdf.js here. Optionally add a
+      <a href="https://aistudio.google.com/apikey" rel="noopener noreferrer">Gemini API key</a> for smarter parsing (sent
+      from your browser to Google; may be blocked by CORS — then a simple line parser runs). Verify every row against your
+      PDF.
     </p>
 
     <details class="setup">
-      <summary>AI setup: Google (recommended) or Vercel AI Gateway</summary>
+      <summary>How this page works</summary>
       <ol>
+        <li>No server or Netlify required — works on GitHub Pages.</li>
+        <li>Text-based PDFs only (not scanned images).</li>
         <li>
-          This site runs on <strong>Netlify</strong> (same as the expense form). Bank import calls a
-          <strong>Netlify Function</strong>: <code>/.netlify/functions/extract-bank-pdf</code>.
-        </li>
-        <li>
-          <strong>GitHub Pages:</strong> static HTML only — functions stay on Netlify. In the repo, set Actions variable
-          <code>NETLIFY_SITE_URL</code> to your Netlify site origin (e.g. <code>https://your-app.netlify.app</code>, no
-          trailing slash) so <code>js/api-origin.js</code> is rewritten on deploy. Or paste the full function URL in the
-          field below.
-        </li>
-        <li>
-          <strong>Option A — Google Gemini (no Vercel billing):</strong> create an API key in
-          <a href="https://aistudio.google.com/apikey" rel="noopener noreferrer">Google AI Studio</a>. In Netlify →
-          Environment variables, add <code>GOOGLE_GENERATIVE_AI_API_KEY</code> or <code>GEMINI_API_KEY</code> (scopes:
-          <strong>Functions</strong> or <strong>All</strong>), then redeploy. Optional: <code>GEMINI_MODEL</code> (default
-          <code>gemini-2.5-flash</code>).
-        </li>
-        <li>
-          <strong>Option B — Vercel AI Gateway:</strong> open
-          <a href="https://vercel.com/docs/ai-gateway" rel="noopener noreferrer">AI Gateway</a>, create an API key, and
-          set <code>AI_GATEWAY_API_KEY</code> in Netlify. Note: Vercel may require a <strong>payment method on file</strong>
-          even to use included credits. Default: <code>zai/glm-4.6v-flash</code>. Override with
-          <code>AI_GATEWAY_MODEL</code> — see
-          <a href="https://vercel.com/ai-gateway/models" rel="noopener noreferrer">Gateway models</a>.
-        </li>
-        <li>
-          If both Google and Gateway keys are set, the function uses <strong>Google</strong> first.
-        </li>
-        <li>
-          On <strong>Netlify</strong> hosting, leave the URL field empty. On <strong>GitHub Pages</strong>, paste the full
-          function URL or set <code>NETLIFY_SITE_URL</code> in Actions so <code>api-origin.js</code> is rewritten on deploy.
+          Optional Gemini key is stored in <code>localStorage</code> on this device. Treat it like a password; revoke the
+          key in Google AI Studio if this machine is shared.
         </li>
       </ol>
     </details>
 
-    <h2>Connection</h2>
-    <label for="apiUrl">Override API URL (optional)</label>
-    <input
-      id="apiUrl"
-      type="url"
-      autocomplete="off"
-      placeholder="On GitHub Pages: paste full URL — https://YOUR-SITE.netlify.app/.netlify/functions/extract-bank-pdf"
-    />
-    <p class="hint" id="connectionHint">
-      On <strong>Netlify</strong>, leave empty (same-origin). On <strong>GitHub Pages</strong>, you must paste the full
-      Netlify function URL — root-relative <code>/.netlify/…</code> points at <code>github.io</code>, not your backend.
-      Saved in localStorage. Optional: <code>window.__BANK_IMPORT_API__</code>.
-    </p>
+    <h2>Optional: Gemini API</h2>
+    <label for="geminiKey">API key (optional)</label>
+    <input id="geminiKey" type="password" autocomplete="off" placeholder="From Google AI Studio" />
+    <label for="geminiModel">Model id (optional)</label>
+    <input id="geminiModel" type="text" autocomplete="off" placeholder="gemini-2.0-flash" />
+    <p class="hint">Leave the key empty to use heuristic parsing only. Values are saved in localStorage.</p>
 
     <h2>PDF file</h2>
     <label for="pdfFile">Statement (.pdf)</label>
@@ -225,157 +196,95 @@
       This tool does not post to Salesforce automatically. Use the main expense form to enter verified rows.
     </p>
 
-    <!-- Optional: <script>window.__BANK_IMPORT_API__ = "https://yoursite.netlify.app/.netlify/functions/extract-bank-pdf";</script> -->
-    <script src="js/api-origin.js"></script>
-    <script src="js/netlify-api-base.js"></script>
-    <script>
-      (function () {
-        const LS_KEY = "bankImportApiUrl";
-        const apiUrlInput = document.getElementById("apiUrl");
-        const pdfFile = document.getElementById("pdfFile");
-        const btnExtract = document.getElementById("btnExtract");
-        const statusEl = document.getElementById("status");
-        const metaLine = document.getElementById("metaLine");
-        const tableWrap = document.getElementById("tableWrap");
-        const resultBody = document.getElementById("resultBody");
+    <script type="module">
+      const LS_KEY = "bankImportGeminiKey";
+      const LS_MODEL = "bankImportGeminiModel";
 
-        function showStatus(kind, text) {
-          statusEl.style.display = text ? "block" : "none";
-          statusEl.className = "msg" + (kind ? " " + kind : "");
-          statusEl.textContent = text || "";
+      const geminiKey = document.getElementById("geminiKey");
+      const geminiModel = document.getElementById("geminiModel");
+      const pdfFile = document.getElementById("pdfFile");
+      const btnExtract = document.getElementById("btnExtract");
+      const statusEl = document.getElementById("status");
+      const metaLine = document.getElementById("metaLine");
+      const tableWrap = document.getElementById("tableWrap");
+      const resultBody = document.getElementById("resultBody");
+
+      function showStatus(kind, text) {
+        statusEl.style.display = text ? "block" : "none";
+        statusEl.className = "msg" + (kind ? " " + kind : "");
+        statusEl.textContent = text || "";
+      }
+
+      geminiKey.value = localStorage.getItem(LS_KEY) || "";
+      geminiModel.value = localStorage.getItem(LS_MODEL) || "";
+      geminiKey.addEventListener("change", () => localStorage.setItem(LS_KEY, geminiKey.value.trim()));
+      geminiModel.addEventListener("change", () => localStorage.setItem(LS_MODEL, geminiModel.value.trim()));
+
+      pdfFile.addEventListener("change", () => {
+        btnExtract.disabled = !pdfFile.files || !pdfFile.files.length;
+      });
+
+      btnExtract.addEventListener("click", async () => {
+        const f = pdfFile.files && pdfFile.files[0];
+        if (!f) {
+          showStatus("err", "Choose a PDF file.");
+          return;
         }
+        showStatus("", "");
+        metaLine.textContent = "";
+        tableWrap.hidden = true;
+        resultBody.innerHTML = "";
+        btnExtract.disabled = true;
 
-        function relativeNetlifyPathWouldHitWrongOrigin(url) {
-          if (!url || url.charAt(0) !== "/" || url.indexOf("/.netlify/") !== 0) return false;
-          const h = (location.hostname || "").toLowerCase();
-          if (h.endsWith(".github.io")) return true;
-          if (h.indexOf("githubusercontent.com") >= 0) return true;
-          return false;
-        }
-
-        function resolveApiUrl() {
-          if (typeof window.__BANK_IMPORT_API__ === "string" && window.__BANK_IMPORT_API__.trim()) {
-            return window.__BANK_IMPORT_API__.trim();
-          }
-          const manual = (apiUrlInput.value || "").trim();
-          if (manual) return manual;
-          const stored = (localStorage.getItem(LS_KEY) || "").trim();
-          if (stored) return stored;
-          if (typeof netlifyFunctionsUrl === "function") {
-            return netlifyFunctionsUrl("extract-bank-pdf");
-          }
-          return "/.netlify/functions/extract-bank-pdf";
-        }
-
-        function fileToBase64(file) {
-          return new Promise(function (resolve, reject) {
-            const r = new FileReader();
-            r.onload = function () {
-              const s = r.result;
-              const i = s.indexOf(",");
-              resolve(i >= 0 ? s.slice(i + 1) : s);
-            };
-            r.onerror = reject;
-            r.readAsDataURL(file);
-          });
-        }
-
-        apiUrlInput.value = localStorage.getItem(LS_KEY) || "";
-        apiUrlInput.addEventListener("change", function () {
-          localStorage.setItem(LS_KEY, apiUrlInput.value.trim());
-        });
-
-        pdfFile.addEventListener("change", function () {
-          btnExtract.disabled = !pdfFile.files || !pdfFile.files.length;
-        });
-
-        btnExtract.addEventListener("click", async function () {
-          const url = resolveApiUrl();
-          if (!url) {
-            showStatus("err", "Could not resolve API URL.");
-            return;
-          }
-          if (relativeNetlifyPathWouldHitWrongOrigin(url)) {
+        try {
+          const { extractPdfText, extractTransactions } = await import("./js/import-bank-pdf.mjs");
+          showStatus("", "Reading PDF…");
+          const text = await extractPdfText(f, 40);
+          if (!text || text.length < 15) {
             showStatus(
               "err",
-              "This page is not on Netlify, but the API URL is relative (starts with /). The browser will call " +
-                location.origin +
-                ", not your functions. Paste the full URL: https://YOUR-SITE.netlify.app/.netlify/functions/extract-bank-pdf " +
-                "(or set NETLIFY_SITE_URL in GitHub Actions and redeploy Pages)."
+              "Could not read enough text from this PDF. Image-only statements need OCR elsewhere first."
             );
             return;
           }
-          const f = pdfFile.files && pdfFile.files[0];
-          if (!f) {
-            showStatus("err", "Choose a PDF file.");
+          showStatus("", "Parsing…");
+          const key = geminiKey.value.trim();
+          const model = geminiModel.value.trim() || undefined;
+          const data = await extractTransactions({ text, geminiKey: key, geminiModel: model });
+          const rows = Array.isArray(data.transactions) ? data.transactions : [];
+          if (!rows.length) {
+            showStatus("ok", "No transactions found. Try adding a Gemini key or a different PDF layout.");
             return;
           }
+          showStatus("ok", "Extracted " + rows.length + " row(s). Verify each line against your PDF.");
+          const m = data.meta || {};
+          metaLine.textContent =
+            (m.via ? "Mode: " + m.via + ". " : "") +
+            (m.model ? "Model: " + m.model + ". " : "") +
+            (m.rawTextLength != null ? "Text length: " + m.rawTextLength + " chars. " : "") +
+            (m.textTruncatedForModel ? "Text truncated for API limit. " : "");
 
-          showStatus("", "");
-          metaLine.textContent = "";
-          tableWrap.hidden = true;
-          resultBody.innerHTML = "";
-          btnExtract.disabled = true;
-
-          try {
-            const pdfBase64 = await fileToBase64(f);
-            const r = await fetch(url, {
-              method: "POST",
-              mode: "cors",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ pdfBase64: pdfBase64, filename: f.name }),
-            });
-            const data = await r.json().catch(function () {
-              return {};
-            });
-            if (!r.ok) {
-              showStatus("err", data.error || JSON.stringify(data));
-              return;
-            }
-            const rows = Array.isArray(data.transactions) ? data.transactions : [];
-            if (!rows.length) {
-              showStatus("ok", "No transactions returned. Try a different PDF or check the statement format.");
-              return;
-            }
-            showStatus("ok", "Extracted " + rows.length + " row(s). Verify each line against your PDF.");
-            const m = data.meta || {};
-            metaLine.textContent =
-              (m.model ? "Model: " + m.model + ". " : "") +
-              (m.rawTextLength != null ? "Text length: " + m.rawTextLength + " chars. " : "") +
-              (m.textTruncatedForModel ? "Statement text was truncated for the model. " : "") +
-              (m.pagesReadCap != null ? "Up to " + m.pagesReadCap + " pages read. " : "");
-
-            rows.forEach(function (row) {
-              const tr = document.createElement("tr");
-              const tdD = document.createElement("td");
-              tdD.textContent = row.date != null ? String(row.date) : "—";
-              const tdN = document.createElement("td");
-              tdN.textContent = row.description != null ? String(row.description) : "—";
-              const tdA = document.createElement("td");
-              tdA.className = "num";
-              tdA.textContent = row.amount != null ? String(row.amount) : "—";
-              tr.appendChild(tdD);
-              tr.appendChild(tdN);
-              tr.appendChild(tdA);
-              resultBody.appendChild(tr);
-            });
-            tableWrap.hidden = false;
-          } catch (e) {
-            const msg = String(e.message || e);
-            if (e && e.name === "TypeError" && /fetch|network|Failed to fetch/i.test(msg)) {
-              showStatus(
-                "err",
-                "Failed to reach the API (network/CORS or wrong URL). If you use GitHub Pages, paste the full Netlify " +
-                  "function URL in \"Override API URL\". On Netlify, ensure the site is deployed and functions run."
-              );
-            } else {
-              showStatus("err", msg);
-            }
-          } finally {
-            btnExtract.disabled = !pdfFile.files || !pdfFile.files.length;
-          }
-        });
-      })();
+          rows.forEach((row) => {
+            const tr = document.createElement("tr");
+            const tdD = document.createElement("td");
+            tdD.textContent = row.date != null ? String(row.date) : "—";
+            const tdN = document.createElement("td");
+            tdN.textContent = row.description != null ? String(row.description) : "—";
+            const tdA = document.createElement("td");
+            tdA.className = "num";
+            tdA.textContent = row.amount != null ? String(row.amount) : "—";
+            tr.appendChild(tdD);
+            tr.appendChild(tdN);
+            tr.appendChild(tdA);
+            resultBody.appendChild(tr);
+          });
+          tableWrap.hidden = false;
+        } catch (e) {
+          showStatus("err", String(e.message || e));
+        } finally {
+          btnExtract.disabled = !pdfFile.files || !pdfFile.files.length;
+        }
+      });
     </script>
   </body>
 </html>
