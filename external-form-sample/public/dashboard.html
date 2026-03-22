@@ -10,13 +10,13 @@
       }
       body {
         font-family: system-ui, -apple-system, Segoe UI, sans-serif;
-        max-width: min(100%, 52rem);
+        max-width: min(100%, 90rem);
         margin: 2rem auto;
-        padding: 0 1rem;
+        padding: 0 1.25rem;
         line-height: 1.45;
       }
       h1 {
-        font-size: 1.35rem;
+        font-size: 1.6rem;
         font-weight: 650;
         margin: 0;
       }
@@ -71,39 +71,42 @@
       }
       .stat-card .stat-value {
         display: block;
-        font-size: 1.35rem;
+        font-size: 1.75rem;
         font-weight: 700;
         font-variant-numeric: tabular-nums;
       }
       .stat-card .stat-label {
-        font-size: 0.78rem;
+        font-size: 0.85rem;
         font-weight: 600;
         opacity: 0.85;
       }
       .dashboard-charts {
         display: grid;
         grid-template-columns: 1fr;
-        gap: 1.25rem;
+        gap: 1.75rem;
       }
-      @media (min-width: 44rem) {
+      @media (min-width: 64rem) {
         .dashboard-charts {
           grid-template-columns: 1fr 1fr;
+          align-items: stretch;
         }
       }
       .chart-card {
         border: 1px solid rgba(127, 127, 127, 0.35);
-        border-radius: 8px;
-        padding: 0.65rem 0.75rem 0.5rem;
+        border-radius: 10px;
+        padding: 0.85rem 1rem 0.65rem;
         background: rgba(127, 127, 127, 0.04);
+        min-height: 0;
       }
       .chart-card h2 {
-        margin: 0 0 0.5rem;
-        font-size: 0.95rem;
+        margin: 0 0 0.65rem;
+        font-size: 1.1rem;
         font-weight: 650;
       }
       .chart-canvas-wrap {
         position: relative;
-        height: 220px;
+        height: min(48vh, 520px);
+        min-height: 320px;
       }
       .dashboard-status {
         font-size: 0.8rem;
@@ -139,13 +142,13 @@
       <div class="chart-card">
         <h2>Amount by month</h2>
         <div class="chart-canvas-wrap">
-          <canvas id="chartMonth" width="400" height="220" aria-label="Amount by month"></canvas>
+          <canvas id="chartMonth" aria-label="Amount by month"></canvas>
         </div>
       </div>
       <div class="chart-card">
         <h2>Top items by amount</h2>
         <div class="chart-canvas-wrap">
-          <canvas id="chartItems" width="400" height="220" aria-label="Top items by amount"></canvas>
+          <canvas id="chartItems" aria-label="Top items by amount"></canvas>
         </div>
       </div>
     </div>
@@ -201,7 +204,7 @@
           }
 
           try {
-            const r = await fetch("/.netlify/functions/expense-dashboard?limit=500");
+            const r = await fetch("/.netlify/functions/expense-dashboard");
             const data = await r.json().catch(() => ({}));
             if (!r.ok) {
               dashboardMsg.textContent = data.error || JSON.stringify(data);
@@ -214,11 +217,11 @@
 
             const meta = data.meta || {};
             dashboardMeta.textContent =
-              "Based on the " +
-              (meta.recordCount != null ? meta.recordCount : "—") +
-              " most recently created expenses (query limit " +
+              "Based on up to " +
               (meta.queryLimit != null ? meta.queryLimit : "—") +
-              "). Month uses expense date when set, otherwise created date.";
+              " most recently created expenses (" +
+              (meta.recordCount != null ? meta.recordCount : "—") +
+              " returned). Month uses expense date when set, otherwise created date.";
 
             const t = data.totals || {};
             dashCount.textContent = String(t.expenseCount != null ? t.expenseCount : 0);
@@ -259,11 +262,16 @@
                 plugins: { legend: { display: false } },
                 scales: {
                   x: {
-                    ticks: { color: th.text, maxRotation: 45, minRotation: 0 },
+                    ticks: {
+                      color: th.text,
+                      maxRotation: 45,
+                      minRotation: 0,
+                      font: { size: 13 },
+                    },
                     grid: { color: th.grid },
                   },
                   y: {
-                    ticks: { color: th.text },
+                    ticks: { color: th.text, font: { size: 13 } },
                     grid: { color: th.grid },
                   },
                 },
@@ -292,11 +300,11 @@
                 plugins: { legend: { display: false } },
                 scales: {
                   x: {
-                    ticks: { color: th.text },
+                    ticks: { color: th.text, font: { size: 13 } },
                     grid: { color: th.grid },
                   },
                   y: {
-                    ticks: { color: th.text, autoSkip: false, font: { size: 11 } },
+                    ticks: { color: th.text, autoSkip: false, font: { size: 13 } },
                     grid: { display: false },
                   },
                 },

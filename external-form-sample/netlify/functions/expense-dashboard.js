@@ -1,6 +1,6 @@
 /**
  * Aggregated expense stats for charts (same object/fields as list-history).
- * GET ?limit=500  (max 2000) — sums price × quantity, groups by month and item.
+ * GET ?limit= (optional, default 2000, max 2000 — Salesforce single-query cap) — sums price × quantity, groups by month and item.
  */
 
 const { sfRestRequest } = require("./lib/sf-client");
@@ -97,7 +97,8 @@ exports.handler = async (event) => {
     }
 
     const sp = event.queryStringParameters || {};
-    const lim = Math.min(Math.max(parseInt(sp.limit, 10) || 500, 1), 2000);
+    const maxRows = 2000;
+    const lim = Math.min(Math.max(parseInt(sp.limit, 10) || maxRows, 1), maxRows);
     const exp = expenseObjectApiName();
 
     const soql = `SELECT Id, Item__r.Name, Price__c, Quantity__c, Expense_Date__c, CreatedDate FROM ${exp} ORDER BY CreatedDate DESC LIMIT ${lim}`;
