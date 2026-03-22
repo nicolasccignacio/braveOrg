@@ -40,8 +40,31 @@
     return base64UrlEncode(a.buffer);
   }
 
+  /**
+   * Salesforce requires redirect_uri to match a Connected App callback URL exactly.
+   * GitHub Pages often opens .../repo/ while admins register .../repo/index.html → 400 if mismatched.
+   * Set __EXPENSE_SF_CONFIG__.redirectUri (CI: SF_OAUTH_REDIRECT_URI) to pin an exact URL.
+   */
   function getRedirectUri() {
-    return window.location.href.split("#")[0].split("?")[0];
+    var fixed = strTrim(deployConfig().redirectUri);
+    if (fixed) return fixed;
+
+    var raw = window.location.href.split("#")[0].split("?")[0];
+    try {
+      var u = new URL(raw);
+      var path = u.pathname || "/";
+
+      if (path.endsWith("/")) {
+        return u.origin + path + "index.html";
+      }
+      var lastSeg = path.slice(path.lastIndexOf("/") + 1);
+      if (lastSeg.indexOf(".") === -1) {
+        return u.origin + path + "/index.html";
+      }
+      return u.origin + path;
+    } catch (e) {
+      return raw;
+    }
   }
 
   function normalizeLoginHost(h) {

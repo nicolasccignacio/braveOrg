@@ -8,5 +8,7 @@
     clientId: "",
     loginHost: "https://login.salesforce.com",
     apiVersion: "v63.0",
+    /** Optional; must match Connected App callback exactly. If omitted, /repo/ becomes /repo/index.html. */
+    redirectUri: "",
   };
 })();

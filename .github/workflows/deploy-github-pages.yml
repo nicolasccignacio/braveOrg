@@ -8,7 +8,8 @@
 #     SF_INSTANCE_URL  — primary: your org host for OAuth + config (e.g. https://MyDomain.my.salesforce.com), no trailing slash
 #     SF_LOGIN_URL     — fallback if SF_INSTANCE_URL unset (e.g. https://login.salesforce.com)
 #     SF_LOGIN_HOST    — second fallback (same intent as SF_LOGIN_URL)
-#     SF_API_VERSION   — optional, default v63.0
+#     SF_API_VERSION        — optional, default v63.0
+#     SF_OAUTH_REDIRECT_URI — optional; exact OAuth callback URL (must match Connected App). If unset, the app normalizes /repo/ → /repo/index.html.
 #   Fallbacks: SF_CLIENT_ID may instead be a variable.
 # Do NOT put SF_CLIENT_SECRET into the static site — PKCE browser apps must not ship a client secret.
 # REST calls still use instance_url from the token response; SF_INSTANCE_URL here sets loginHost for /services/oauth2/* only.
@@ -50,6 +51,7 @@ jobs:
           SF_LOGIN_URL: ${{ vars.SF_LOGIN_URL }}
           SF_LOGIN_HOST: ${{ vars.SF_LOGIN_HOST }}
           SF_API_VERSION: ${{ vars.SF_API_VERSION }}
+          SF_OAUTH_REDIRECT_URI: ${{ vars.SF_OAUTH_REDIRECT_URI }}
         run: |
           node <<'NODE'
           const fs = require("fs");
@@ -64,13 +66,15 @@ jobs:
             .trim()
             .replace(/\/$/, "");
           const apiVersion = (process.env.SF_API_VERSION || "v63.0").trim() || "v63.0";
+          const redirectUri = (process.env.SF_OAUTH_REDIRECT_URI || "").trim();
           const cfg = {
             clientId,
             loginHost: loginHost || "https://login.salesforce.com",
             apiVersion: apiVersion.indexOf("v") === 0 ? apiVersion : "v" + apiVersion,
           };
+          if (redirectUri) cfg.redirectUri = redirectUri;
           const body =
-            "/** Generated in CI from secrets.SF_CLIENT_ID / vars.SF_INSTANCE_URL (or SF_LOGIN_URL / SF_LOGIN_HOST) / vars.SF_API_VERSION. */\n" +
+            "/** Generated in CI: SF_CLIENT_ID, login host vars, SF_API_VERSION, optional SF_OAUTH_REDIRECT_URI. */\n" +
             "(function(){window.__EXPENSE_SF_CONFIG__=" +
             JSON.stringify(cfg) +
             ";})();\n";
