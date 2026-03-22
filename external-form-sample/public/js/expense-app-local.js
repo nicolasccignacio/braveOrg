@@ -116,6 +116,10 @@
   }
 
   window.ExpenseAppLocal = {
+    usesSalesforceBackend: function () {
+      return false;
+    },
+
     searchItems: function (q, limit) {
       var items = getItems();
       var raw = String(q || "").trim();

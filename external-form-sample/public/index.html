@@ -4,309 +4,54 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Create expense</title>
-    <style>
-      :root {
-        color-scheme: light dark;
-      }
-      body {
-        font-family: system-ui, -apple-system, Segoe UI, sans-serif;
-        max-width: 40rem;
-        margin: 2rem auto;
-        padding: 0 1rem;
-        line-height: 1.45;
-      }
-      .site-nav {
-        font-size: 0.9rem;
-        margin-bottom: 1rem;
-      }
-      .site-nav a {
-        color: inherit;
-        margin-right: 1rem;
-      }
-      .site-nav a[aria-current="page"] {
-        font-weight: 650;
-        text-decoration: none;
-      }
-      h1 {
-        font-size: 1.35rem;
-        font-weight: 650;
-      }
-      h2 {
-        font-size: 1.05rem;
-        font-weight: 650;
-        margin-top: 1.75rem;
-        margin-bottom: 0.5rem;
-      }
-      label {
-        display: block;
-        margin-top: 0.85rem;
-        font-weight: 600;
-        font-size: 0.9rem;
-      }
-      input[type="text"],
-      input[type="number"],
-      input[type="date"],
-      select {
-        width: 100%;
-        box-sizing: border-box;
-        margin-top: 0.2rem;
-        padding: 0.45rem 0.5rem;
-        font: inherit;
-      }
-      .item-field-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 0.5rem;
-        margin-top: 0.85rem;
-      }
-      .item-field-header label {
-        margin-top: 0;
-      }
-      .btn-icon-add {
-        flex-shrink: 0;
-        width: 2.1rem;
-        height: 2.1rem;
-        padding: 0;
-        font-size: 1.4rem;
-        line-height: 1;
-        font-weight: 500;
-        border-radius: 6px;
-        border: 1px solid rgba(127, 127, 127, 0.45);
-        background: canvas;
-        color: canvastext;
-        cursor: pointer;
-      }
-      .btn-icon-add:hover,
-      .btn-icon-add:focus {
-        background: rgba(127, 127, 127, 0.12);
-        outline: none;
-      }
-      .btn-icon-add:focus-visible {
-        outline: 2px solid Highlight;
-        outline-offset: 2px;
-      }
-      .quick-item-panel {
-        margin-top: 0.5rem;
-        margin-bottom: 0.25rem;
-      }
-      .quick-item-panel[hidden] {
-        display: none !important;
-      }
-      .quick-item-row {
-        display: flex;
-        gap: 0.5rem;
-        align-items: center;
-        flex-wrap: wrap;
-      }
-      .quick-item-row input[type="text"] {
-        flex: 1;
-        min-width: 10rem;
-        margin-top: 0;
-      }
-      .quick-item-row button {
-        padding: 0.45rem 0.85rem;
-        font: inherit;
-        cursor: pointer;
-        white-space: nowrap;
-      }
-      .quick-item-msg {
-        font-size: 0.8rem;
-        margin-top: 0.35rem;
-        min-height: 1em;
-      }
-      .quick-item-msg.ok {
-        color: seagreen;
-      }
-      .quick-item-msg.err {
-        color: crimson;
-      }
-      .item-status {
-        font-size: 0.8rem;
-        margin-top: 0.35rem;
-        min-height: 1em;
-      }
-      .item-status.error {
-        color: crimson;
-        white-space: pre-wrap;
-        word-break: break-word;
-      }
-      .item-combobox {
-        position: relative;
-        margin-top: 0.2rem;
-      }
-      .item-combobox input[type="text"] {
-        margin-top: 0;
-      }
-      .item-listbox {
-        list-style: none;
-        margin: 0;
-        padding: 0;
-        position: absolute;
-        left: 0;
-        right: 0;
-        max-height: 14rem;
-        overflow-y: auto;
-        z-index: 20;
-        background: canvas;
-        color: canvastext;
-        border: 1px solid rgba(127, 127, 127, 0.45);
-        border-radius: 4px;
-        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
-      }
-      .item-listbox[hidden] {
-        display: none !important;
-      }
-      .item-listbox li[role="option"] {
-        margin: 0;
-        padding: 0.4rem 0.55rem;
-        cursor: pointer;
-      }
-      .item-listbox li[role="option"][aria-selected="true"],
-      .item-listbox li[role="option"]:hover {
-        background: rgba(127, 127, 127, 0.15);
-      }
-      .item-listbox .item-list-hint {
-        cursor: default;
-        padding: 0.4rem 0.55rem;
-        font-size: 0.85rem;
-        opacity: 0.85;
-      }
-      button[type="submit"] {
-        margin-top: 1.25rem;
-        padding: 0.55rem 1.1rem;
-        font: inherit;
-        font-weight: 600;
-        cursor: pointer;
-      }
-      .msg {
-        margin-top: 1rem;
-        padding: 0.75rem;
-        border-radius: 6px;
-        font-size: 0.9rem;
-      }
-      .msg.ok {
-        background: rgba(46, 125, 50, 0.12);
-      }
-      .msg.err {
-        background: rgba(198, 40, 40, 0.12);
-      }
-      .hp {
-        position: absolute;
-        left: -9999px;
-        width: 1px;
-        height: 1px;
-        overflow: hidden;
-      }
-      .history-wrap {
-        overflow-x: auto;
-        margin-top: 0.5rem;
-        border: 1px solid rgba(127, 127, 127, 0.35);
-        border-radius: 6px;
-      }
-      table.history {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 0.85rem;
-      }
-      .history th,
-      .history td {
-        padding: 0.4rem 0.5rem;
-        text-align: left;
-        border-bottom: 1px solid rgba(127, 127, 127, 0.25);
-      }
-      .history th {
-        font-weight: 600;
-        background: rgba(127, 127, 127, 0.08);
-      }
-      .history-status {
-        font-size: 0.8rem;
-        margin-top: 0.35rem;
-        color: crimson;
-      }
-      .history-actions {
-        white-space: nowrap;
-        text-align: right;
-      }
-      .history-actions .btn-icon-table {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 2rem;
-        height: 2rem;
-        margin: 0 0.1rem;
-        padding: 0;
-        border: none;
-        border-radius: 6px;
-        background: transparent;
-        color: inherit;
-        cursor: pointer;
-        vertical-align: middle;
-      }
-      .history-actions .btn-icon-table:hover {
-        background: rgba(127, 127, 127, 0.15);
-      }
-      .history-actions .btn-icon-table:focus-visible {
-        outline: 2px solid Highlight;
-        outline-offset: 1px;
-      }
-      .history-actions .btn-icon-table.danger:hover {
-        background: rgba(198, 40, 40, 0.15);
-        color: crimson;
-      }
-      .edit-dialog {
-        border: 1px solid rgba(127, 127, 127, 0.45);
-        border-radius: 10px;
-        padding: 1rem 1.1rem;
-        max-width: min(100vw - 2rem, 22rem);
-      }
-      .edit-dialog::backdrop {
-        background: rgba(0, 0, 0, 0.45);
-      }
-      .edit-dialog h3 {
-        margin: 0 0 0.35rem;
-        font-size: 1.1rem;
-      }
-      .edit-meta {
-        font-size: 0.8rem;
-        opacity: 0.85;
-        margin: 0 0 0.75rem;
-        word-break: break-all;
-      }
-      .edit-dialog label {
-        margin-top: 0.65rem;
-      }
-      .edit-dialog-actions {
-        display: flex;
-        gap: 0.5rem;
-        justify-content: flex-end;
-        margin-top: 1rem;
-      }
-      .edit-dialog-actions button {
-        padding: 0.45rem 0.9rem;
-        font: inherit;
-        cursor: pointer;
-      }
-      #editExpenseErr {
-        margin-top: 0.5rem;
-        margin-bottom: 0;
-      }
-    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,500,0,0"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/material-theme.css" />
   </head>
-  <body>
-    <nav class="site-nav" aria-label="Site">
-      <a href="index.html" aria-current="page">Create expense</a>
-      <a href="dashboard.html">Dashboard</a>
-      <a href="import-bank.html">Import bank</a>
-    </nav>
+  <body class="md-body">
+    <header class="md-top-app-bar">
+      <div class="md-top-app-bar__inner">
+        <nav class="md-nav" aria-label="Site">
+          <a href="index.html" aria-current="page">Create expense</a>
+          <a href="dashboard.html">Dashboard</a>
+          <a href="import-bank.html">Import bank</a>
+        </nav>
+      </div>
+    </header>
 
-    <h1>Create expense</h1>
-    <p class="hint" style="font-size: 0.88rem; margin-top: -0.25rem">
-      Data stays in this browser (<code>localStorage</code>). Use <strong>Export data</strong> to back up. For Salesforce
-      or other backends, host your own API and wire the UI separately — this project no longer includes Netlify.
-    </p>
+    <main class="md-main md-container">
+    <h1 class="md-display-small">Create expense</h1>
+    <p id="modeHint" class="hint md-body-text" style="margin-top: -0.25rem"></p>
+    <details class="md-disclosure hint">
+      <summary>Salesforce (standard REST API)</summary>
+      <p>
+        Use a <strong>Connected App</strong> with OAuth enabled, flow <strong>Authorization Code with PKCE</strong>, callback URL
+        exactly this page’s URL (no query string). Add this site’s origin under <strong>Setup → Security → Trusted URLs /
+        CORS</strong> if the browser blocks calls. Scopes: <code>api</code> and <code>refresh_token</code>.
+      </p>
+      <label for="sfLoginHost">Login URL</label>
+      <input id="sfLoginHost" type="url" placeholder="https://login.salesforce.com" autocomplete="off" />
+      <label for="sfClientId">Consumer Key (Client ID)</label>
+      <input id="sfClientId" type="text" placeholder="Connected App consumer key" autocomplete="off" spellcheck="false" />
+      <label for="sfApiVersion">API version</label>
+      <input id="sfApiVersion" type="text" placeholder="v63.0" autocomplete="off" />
+      <p style="margin-top: 0.75rem; display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center">
+        <button type="button" id="btnSfConnect" class="md-btn md-btn--filled">Connect with Salesforce</button>
+        <button type="button" id="btnSfDisconnect" class="md-btn md-btn--outlined">Disconnect</button>
+        <button type="button" id="btnSfBrowserOnly" class="md-btn md-btn--outlined">Use browser only</button>
+      </p>
+    </details>
 
-    <h2>Expense</h2>
+    <section class="md-section-card" aria-labelledby="expense-heading">
+    <h2 id="expense-heading" class="md-title-large">Expense</h2>
     <form id="f" novalidate>
       <input type="text" name="website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true" />
 
@@ -320,7 +65,7 @@
           aria-controls="quickItemPanel"
           title="Create new item"
         >
-          +
+          <span class="material-symbols-outlined" aria-hidden="true">add</span>
         </button>
       </div>
       <div id="quickItemPanel" class="quick-item-panel" hidden>
@@ -332,7 +77,7 @@
             autocomplete="off"
             aria-label="New item name"
           />
-          <button type="button" id="btnQuickCreateItem">Add</button>
+          <button type="button" id="btnQuickCreateItem" class="md-btn md-btn--filled">Add</button>
         </div>
         <p id="quickItemMsg" class="quick-item-msg" role="status" aria-live="polite"></p>
       </div>
@@ -370,11 +115,13 @@
       <label for="referencia">Referencia</label>
       <input id="referencia" name="referencia" type="text" />
 
-      <button type="submit" id="btnSubmitExpense">Save expense</button>
+      <button type="submit" id="btnSubmitExpense" class="md-btn md-btn--filled">Save expense</button>
     </form>
     <div id="out" role="status"></div>
+    </section>
 
-    <h2>History</h2>
+    <section class="md-section-card" aria-labelledby="history-heading">
+    <h2 id="history-heading" class="md-title-large">History</h2>
     <div class="history-wrap">
       <table class="history" aria-label="Expense history">
         <thead>
@@ -395,18 +142,19 @@
       </table>
     </div>
     <p id="historyMsg" class="history-status" role="status" aria-live="polite"></p>
+    </section>
 
-    <h2>Your data</h2>
-    <p class="hint" style="font-size: 0.85rem">
-      Export a JSON backup or import a file (replaces all items and expenses in this browser).
-    </p>
-    <p>
-      <button type="button" id="btnExportData">Export data</button>
-      <label style="display: inline-block; margin-left: 0.75rem; font-size: 0.9rem">
+    <section class="md-section-card" aria-labelledby="data-heading">
+    <h2 id="data-heading" class="md-title-large">Your data</h2>
+    <p id="dataHint" class="hint md-body-text" style="margin-bottom: 0.75rem"></p>
+    <p style="display: flex; flex-wrap: wrap; gap: 0.75rem 1.25rem; align-items: flex-end; margin: 0">
+      <button type="button" id="btnExportData" class="md-btn md-btn--outlined">Export data</button>
+      <label class="md-import-label" style="display: inline-block; font-size: 0.75rem; font-weight: 500; color: var(--md-sys-color-on-surface-variant); margin-top: 0">
         Import backup
         <input type="file" id="importDataFile" accept="application/json,.json" style="display: block; margin-top: 0.35rem" />
       </label>
     </p>
+    </section>
 
     <dialog id="editExpenseDialog" class="edit-dialog" aria-labelledby="editExpenseTitle">
       <h3 id="editExpenseTitle">Edit expense</h3>
@@ -424,16 +172,74 @@
       <label for="editReferencia">Referencia</label>
       <input id="editReferencia" type="text" />
       <div class="edit-dialog-actions">
-        <button type="button" id="editExpenseCancel">Cancel</button>
-        <button type="button" id="editExpenseSave">Save</button>
+        <button type="button" id="editExpenseCancel" class="md-btn md-btn--text">Cancel</button>
+        <button type="button" id="editExpenseSave" class="md-btn md-btn--filled">Save</button>
       </div>
       <p id="editExpenseErr" class="history-status" role="status"></p>
     </dialog>
 
+    </main>
+
     <script src="js/expense-app-local.js"></script>
+    <script src="js/expense-app-salesforce-oauth.js"></script>
+    <script src="js/expense-app-salesforce-rest.js"></script>
+    <script src="js/expense-app-mode.js"></script>
     <script>
       (function () {
         const form = document.getElementById("f");
+        const modeHint = document.getElementById("modeHint");
+        const dataHint = document.getElementById("dataHint");
+
+        function refreshHints() {
+          var sf = window.ExpenseApp && window.ExpenseApp.usesSalesforceBackend();
+          if (modeHint) {
+            modeHint.innerHTML = sf
+              ? "<strong>Salesforce:</strong> standard REST API against <code>Item__c</code> and <code>Expense_Item_Price__c</code> (as your signed-in user)."
+              : "<strong>Browser-only:</strong> data in <code>localStorage</code> on this device. Connect to Salesforce above to use your org.";
+          }
+          if (dataHint) {
+            dataHint.innerHTML = sf
+              ? "Export downloads JSON from Salesforce (REST query). Import is disabled — use Data Loader or disconnect and use browser-only mode."
+              : "Export a JSON backup. Import replaces all items and expenses in this browser.";
+          }
+          var imp = document.getElementById("importDataFile");
+          if (imp) {
+            imp.disabled = !!sf;
+            imp.title = sf ? "Import is only available in browser-only mode." : "";
+          }
+        }
+
+        const sfLoginHost = document.getElementById("sfLoginHost");
+        const sfClientId = document.getElementById("sfClientId");
+        const sfApiVersion = document.getElementById("sfApiVersion");
+        if (sfLoginHost && window.SFExpenseSession) {
+          sfLoginHost.value = SFExpenseSession.getLoginHost();
+          sfClientId.value = SFExpenseSession.getClientId();
+          sfApiVersion.value = SFExpenseSession.getApiVersion();
+        }
+        document.getElementById("btnSfConnect").addEventListener("click", async function () {
+          if (!window.SFExpenseSession) return;
+          SFExpenseSession.setLoginHost(sfLoginHost.value);
+          SFExpenseSession.setClientId(sfClientId.value);
+          SFExpenseSession.setApiVersion(sfApiVersion.value);
+          try {
+            await SFExpenseSession.beginOAuth();
+          } catch (e) {
+            alert(String(e.message || e));
+          }
+        });
+        document.getElementById("btnSfDisconnect").addEventListener("click", function () {
+          if (window.SFExpenseSession) SFExpenseSession.disconnect();
+          refreshHints();
+          loadAllItems().catch(() => {});
+          loadHistory();
+        });
+        document.getElementById("btnSfBrowserOnly").addEventListener("click", function () {
+          if (window.SFExpenseSession) SFExpenseSession.setBrowserOnlyMode();
+          refreshHints();
+          loadAllItems().catch(() => {});
+          loadHistory();
+        });
         const itemSearch = document.getElementById("itemSearch");
         const itemListbox = document.getElementById("itemListbox");
         const itemIdInput = document.getElementById("itemId");
@@ -620,7 +426,7 @@
         async function remoteItemSearch(q) {
           const seq = ++remoteSearchSeq;
           try {
-            const data = await window.ExpenseAppLocal.searchItems(q, 150);
+            const data = await window.ExpenseApp.searchItems(q, 150);
             if (seq !== remoteSearchSeq) return;
             const found = (Array.isArray(data.records) ? data.records : []).map(rowToItem);
             mergeItemsIntoCache(found);
@@ -700,7 +506,7 @@
           itemSearch.placeholder = "Loading items…";
           closeListbox();
 
-          const data = await window.ExpenseAppLocal.searchItems("", 2000);
+          const data = await window.ExpenseApp.searchItems("", 2000);
           const records = Array.isArray(data.records) ? data.records : [];
           itemsCache = records.map(rowToItem);
 
@@ -796,7 +602,7 @@
           if (!confirm("Delete this expense? This cannot be undone.")) return;
           historyMsg.textContent = "";
           try {
-            await window.ExpenseAppLocal.deleteExpense({ recordId: row.id, website: "" });
+            await window.ExpenseApp.deleteExpense({ recordId: row.id, website: "" });
             await loadHistory();
           } catch (err) {
             historyMsg.textContent = String(err.message || err);
@@ -807,7 +613,7 @@
           historyMsg.textContent = "";
           historyBody.innerHTML = "<tr><td colspan='6'>Loading…</td></tr>";
           try {
-            const data = await window.ExpenseAppLocal.listHistory(50);
+            const data = await window.ExpenseApp.listHistory(50);
             const records = Array.isArray(data.records) ? data.records : [];
             if (!records.length) {
               historyBody.innerHTML = "<tr><td colspan='6'>No rows yet.</td></tr>";
@@ -890,7 +696,7 @@
               cuotas: editCuotas.value,
               referencia: editReferencia.value.trim() || null,
             };
-            await window.ExpenseAppLocal.updateExpense(payload);
+            await window.ExpenseApp.updateExpense(payload);
             editExpenseDialog.close();
             editingRecordId = null;
             await loadHistory();
@@ -901,10 +707,10 @@
           }
         });
 
-        document.getElementById("btnExportData").addEventListener("click", function () {
+        document.getElementById("btnExportData").addEventListener("click", async function () {
           let json;
           try {
-            json = window.ExpenseAppLocal.exportAll();
+            json = await Promise.resolve(window.ExpenseApp.exportAll());
           } catch (e) {
             alert(String(e.message || e));
             return;
@@ -925,7 +731,7 @@
           out.textContent = "";
           try {
             const text = await f.text();
-            await window.ExpenseAppLocal.importAll(text);
+            await window.ExpenseApp.importAll(text);
             out.classList.add("ok");
             out.textContent = "Backup imported. Lists refreshed.";
             await loadAllItems();
@@ -967,7 +773,7 @@
           }
           btnQuickCreateItem.disabled = true;
           try {
-            const data = await window.ExpenseAppLocal.createItem(name);
+            const data = await window.ExpenseApp.createItem(name);
             quickItemName.value = "";
             setQuickItemMsg("ok", "Created.");
             quickItemPanel.hidden = true;
@@ -981,7 +787,26 @@
           }
         });
 
-        window.addEventListener("DOMContentLoaded", () => {
+        window.addEventListener("DOMContentLoaded", async () => {
+          if (window.SFExpenseSession) {
+            try {
+              await SFExpenseSession.handleRedirectIfPresent();
+            } catch (e) {
+              try {
+                sessionStorage.setItem("expenseSf_oauth_flash_error", String(e.message || e));
+              } catch (err) {}
+            }
+          }
+          var flash = null;
+          try {
+            flash = sessionStorage.getItem("expenseSf_oauth_flash_error");
+            if (flash) sessionStorage.removeItem("expenseSf_oauth_flash_error");
+          } catch (e) {}
+          if (flash) {
+            out.className = "msg err";
+            out.textContent = flash;
+          }
+          refreshHints();
           setFormDefaults();
           loadAllItems()
             .catch((e) => {
@@ -1016,9 +841,11 @@
           }
 
           try {
-            await window.ExpenseAppLocal.submitExpense(payload);
+            await window.ExpenseApp.submitExpense(payload);
             out.classList.add("ok");
-            out.textContent = "Expense saved in this browser.";
+            out.textContent = window.ExpenseApp.usesSalesforceBackend()
+              ? "Expense saved in Salesforce."
+              : "Expense saved in this browser.";
             form.reset();
             setFormDefaults();
             clearItemPicker();

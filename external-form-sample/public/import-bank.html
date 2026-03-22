@@ -4,154 +4,52 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Import bank statement</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,500,0,0"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/material-theme.css" />
     <style>
-      :root {
-        color-scheme: light dark;
-      }
-      body {
-        font-family: system-ui, -apple-system, Segoe UI, sans-serif;
-        max-width: min(100%, 48rem);
-        margin: 2rem auto;
-        padding: 0 1rem;
-        line-height: 1.45;
-      }
-      h1 {
-        font-size: 1.35rem;
-        font-weight: 650;
-      }
-      h2 {
-        font-size: 1.05rem;
-        font-weight: 650;
-        margin-top: 1.5rem;
-      }
-      .site-nav {
-        font-size: 0.9rem;
-        margin-bottom: 1rem;
-      }
-      .site-nav a {
-        color: inherit;
-        margin-right: 1rem;
-      }
-      .site-nav a[aria-current="page"] {
-        font-weight: 650;
-        text-decoration: none;
-      }
-      label {
-        display: block;
-        margin-top: 0.85rem;
-        font-weight: 600;
-        font-size: 0.9rem;
-      }
-      input[type="url"],
-      input[type="password"],
-      input[type="text"],
-      input[type="file"] {
-        width: 100%;
-        box-sizing: border-box;
-        margin-top: 0.2rem;
-        font: inherit;
-      }
-      input[type="file"] {
-        padding: 0.35rem 0;
-      }
-      button.primary {
+      #btnExtract {
         margin-top: 1rem;
-        padding: 0.55rem 1.1rem;
-        font: inherit;
-        font-weight: 600;
-        cursor: pointer;
-        border-radius: 6px;
-        border: 1px solid rgba(127, 127, 127, 0.45);
-        background: canvas;
-        color: canvastext;
       }
-      button.primary:disabled {
-        opacity: 0.55;
+      #btnExtract:disabled {
+        opacity: 0.38;
         cursor: not-allowed;
       }
-      .hint {
-        font-size: 0.82rem;
-        opacity: 0.88;
-        margin-top: 0.35rem;
-      }
       .msg {
-        margin-top: 1rem;
-        padding: 0.75rem;
-        border-radius: 6px;
-        font-size: 0.9rem;
         white-space: pre-wrap;
         word-break: break-word;
       }
-      .msg.err {
-        background: rgba(198, 40, 40, 0.12);
-        color: inherit;
-      }
-      .msg.ok {
-        background: rgba(46, 125, 50, 0.12);
-      }
-      details.setup {
-        margin-top: 1rem;
-        padding: 0.65rem 0.85rem;
-        border: 1px solid rgba(127, 127, 127, 0.35);
-        border-radius: 8px;
-        font-size: 0.88rem;
-      }
-      details.setup summary {
-        cursor: pointer;
-        font-weight: 600;
-      }
-      details.setup ol {
-        margin: 0.5rem 0 0;
-        padding-left: 1.2rem;
-      }
-      .table-wrap {
-        overflow-x: auto;
-        margin-top: 1rem;
-        border: 1px solid rgba(127, 127, 127, 0.35);
-        border-radius: 6px;
-      }
-      table.results {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 0.85rem;
-      }
-      .results th,
-      .results td {
-        padding: 0.4rem 0.5rem;
-        text-align: left;
-        border-bottom: 1px solid rgba(127, 127, 127, 0.25);
-      }
-      .results th {
-        font-weight: 600;
-        background: rgba(127, 127, 127, 0.08);
-      }
-      .results td.num {
-        text-align: right;
-        font-variant-numeric: tabular-nums;
-      }
-      .disclaimer {
-        font-size: 0.82rem;
-        opacity: 0.9;
-        margin-top: 1rem;
-      }
     </style>
   </head>
-  <body>
-    <nav class="site-nav" aria-label="Site">
-      <a href="index.html">Create expense</a>
-      <a href="dashboard.html">Dashboard</a>
-      <a href="import-bank.html" aria-current="page">Import bank</a>
-    </nav>
+  <body class="md-body">
+    <header class="md-top-app-bar">
+      <div class="md-top-app-bar__inner">
+        <nav class="md-nav" aria-label="Site">
+          <a href="index.html">Create expense</a>
+          <a href="dashboard.html">Dashboard</a>
+          <a href="import-bank.html" aria-current="page">Import bank</a>
+        </nav>
+      </div>
+    </header>
 
-    <h1>Import bank statement (PDF)</h1>
-    <p class="hint">
+    <main class="md-main md-container md-container--import">
+    <h1 class="md-display-small">Import bank statement (PDF)</h1>
+    <p class="hint md-body-text">
       <strong>Browser-only:</strong> PDF text is extracted with pdf.js here. Optionally add a
       <a href="https://aistudio.google.com/apikey" rel="noopener noreferrer">Gemini API key</a> for smarter parsing (sent
       from your browser to Google; may be blocked by CORS — then a simple line parser runs). Verify every row against your
       PDF.
     </p>
 
-    <details class="setup">
+    <details class="md-disclosure setup">
       <summary>How this page works</summary>
       <ol>
         <li>No server or Netlify required — works on GitHub Pages.</li>
@@ -163,18 +61,21 @@
       </ol>
     </details>
 
-    <h2>Optional: Gemini API</h2>
+    <h2 class="md-title-large" style="margin-top: 1.5rem">Optional: Gemini API</h2>
     <label for="geminiKey">API key (optional)</label>
     <input id="geminiKey" type="password" autocomplete="off" placeholder="From Google AI Studio" />
     <label for="geminiModel">Model id (optional)</label>
     <input id="geminiModel" type="text" autocomplete="off" placeholder="gemini-2.0-flash" />
     <p class="hint">Leave the key empty to use heuristic parsing only. Values are saved in localStorage.</p>
 
-    <h2>PDF file</h2>
+    <h2 class="md-title-large" style="margin-top: 1.5rem">PDF file</h2>
     <label for="pdfFile">Statement (.pdf)</label>
     <input id="pdfFile" type="file" accept=".pdf,application/pdf" />
 
-    <button type="button" class="primary" id="btnExtract" disabled>Extract expenses</button>
+    <button type="button" class="md-btn md-btn--filled" id="btnExtract" disabled>
+      <span class="material-symbols-outlined" aria-hidden="true">description</span>
+      Extract expenses
+    </button>
     <div id="status" class="msg" role="status" style="display: none" aria-live="polite"></div>
 
     <div id="metaLine" class="hint" style="margin-top: 0.75rem"></div>
@@ -195,6 +96,8 @@
     <p class="disclaimer">
       This tool does not post to Salesforce automatically. Use the main expense form to enter verified rows.
     </p>
+
+    </main>
 
     <script type="module">
       const LS_KEY = "bankImportGeminiKey";

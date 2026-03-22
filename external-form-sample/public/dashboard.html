@@ -4,127 +4,36 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Expense dashboard</title>
-    <style>
-      :root {
-        color-scheme: light dark;
-      }
-      body {
-        font-family: system-ui, -apple-system, Segoe UI, sans-serif;
-        max-width: min(100%, 90rem);
-        margin: 2rem auto;
-        padding: 0 1.25rem;
-        line-height: 1.45;
-      }
-      h1 {
-        font-size: 1.6rem;
-        font-weight: 650;
-        margin: 0;
-      }
-      .page-head {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        justify-content: space-between;
-        gap: 0.75rem;
-        margin-bottom: 1rem;
-      }
-      .site-nav {
-        font-size: 0.9rem;
-        margin-bottom: 0.35rem;
-      }
-      .site-nav a {
-        color: inherit;
-        margin-right: 1rem;
-      }
-      .site-nav a[aria-current="page"] {
-        font-weight: 650;
-        text-decoration: none;
-      }
-      #btnRefreshDashboard {
-        padding: 0.45rem 0.9rem;
-        font: inherit;
-        cursor: pointer;
-        border-radius: 6px;
-        border: 1px solid rgba(127, 127, 127, 0.45);
-        background: canvas;
-        color: canvastext;
-      }
-      #btnRefreshDashboard:hover {
-        background: rgba(127, 127, 127, 0.1);
-      }
-      .dashboard-meta {
-        font-size: 0.8rem;
-        opacity: 0.85;
-        margin: 0 0 0.75rem;
-      }
-      .dashboard-stats {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
-        gap: 0.65rem;
-        margin-bottom: 1rem;
-      }
-      .stat-card {
-        border: 1px solid rgba(127, 127, 127, 0.35);
-        border-radius: 8px;
-        padding: 0.65rem 0.75rem;
-        background: rgba(127, 127, 127, 0.06);
-      }
-      .stat-card .stat-value {
-        display: block;
-        font-size: 1.75rem;
-        font-weight: 700;
-        font-variant-numeric: tabular-nums;
-      }
-      .stat-card .stat-label {
-        font-size: 0.85rem;
-        font-weight: 600;
-        opacity: 0.85;
-      }
-      .dashboard-charts {
-        display: grid;
-        grid-template-columns: 1fr;
-        gap: 1.75rem;
-      }
-      @media (min-width: 64rem) {
-        .dashboard-charts {
-          grid-template-columns: 1fr 1fr;
-          align-items: stretch;
-        }
-      }
-      .chart-card {
-        border: 1px solid rgba(127, 127, 127, 0.35);
-        border-radius: 10px;
-        padding: 0.85rem 1rem 0.65rem;
-        background: rgba(127, 127, 127, 0.04);
-        min-height: 0;
-      }
-      .chart-card h2 {
-        margin: 0 0 0.65rem;
-        font-size: 1.1rem;
-        font-weight: 650;
-      }
-      .chart-canvas-wrap {
-        position: relative;
-        height: min(48vh, 520px);
-        min-height: 320px;
-      }
-      .dashboard-status {
-        font-size: 0.8rem;
-        margin-top: 0.75rem;
-        color: crimson;
-      }
-    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,500,0,0"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/material-theme.css" />
   </head>
-  <body>
-    <nav class="site-nav" aria-label="Site">
-      <a href="index.html">Create expense</a>
-      <a href="dashboard.html" aria-current="page">Dashboard</a>
-      <a href="import-bank.html">Import bank</a>
-    </nav>
+  <body class="md-body">
+    <header class="md-top-app-bar">
+      <div class="md-top-app-bar__inner md-top-app-bar__inner--wide">
+        <nav class="md-nav" aria-label="Site">
+          <a href="index.html">Create expense</a>
+          <a href="dashboard.html" aria-current="page">Dashboard</a>
+          <a href="import-bank.html">Import bank</a>
+        </nav>
+      </div>
+    </header>
 
+    <main class="md-main md-container md-container--wide">
     <div class="page-head">
       <h1>Dashboard</h1>
-      <button type="button" id="btnRefreshDashboard">Refresh</button>
+      <button type="button" id="btnRefreshDashboard" class="md-btn md-btn--outlined">
+        <span class="material-symbols-outlined" aria-hidden="true" style="font-size: 1.125rem">refresh</span>
+        Refresh
+      </button>
     </div>
 
     <p id="dashboardMeta" class="dashboard-meta" aria-live="polite"></p>
@@ -153,11 +62,14 @@
       </div>
     </div>
     <p id="dashboardMsg" class="dashboard-status" role="status" aria-live="polite"></p>
-    <p id="dashModeHint" class="hint" style="font-size: 0.85rem; max-width: 42rem">
-      Charts use expenses stored in this browser (<code>localStorage</code>), same as the main form.
-    </p>
+    <p id="dashModeHint" class="hint md-body-text" style="max-width: 42rem"></p>
+
+    </main>
 
     <script src="js/expense-app-local.js"></script>
+    <script src="js/expense-app-salesforce-oauth.js"></script>
+    <script src="js/expense-app-salesforce-rest.js"></script>
+    <script src="js/expense-app-mode.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" crossorigin="anonymous"></script>
     <script>
       (function () {
@@ -178,11 +90,11 @@
         function dashboardChartTheme() {
           const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
           return {
-            text: dark ? "#e4e4e4" : "#222",
-            grid: dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)",
-            fillLine: dark ? "rgba(100, 181, 246, 0.35)" : "rgba(25, 118, 210, 0.22)",
-            strokeLine: dark ? "rgb(129, 212, 250)" : "rgb(25, 118, 210)",
-            bar: dark ? "rgba(165, 214, 167, 0.9)" : "rgba(56, 142, 60, 0.85)",
+            text: dark ? "#e6e0e9" : "#49454f",
+            grid: dark ? "rgba(230, 224, 233, 0.12)" : "rgba(73, 69, 79, 0.15)",
+            fillLine: dark ? "rgba(208, 188, 255, 0.35)" : "rgba(103, 80, 164, 0.2)",
+            strokeLine: dark ? "#d0bcff" : "#6750a4",
+            bar: dark ? "rgba(204, 194, 220, 0.8)" : "rgba(98, 91, 113, 0.65)",
           };
         }
 
@@ -208,7 +120,7 @@
           }
 
           try {
-            const data = await window.ExpenseAppLocal.dashboard(2000);
+            const data = await window.ExpenseApp.dashboard(2000);
             const meta = data.meta || {};
             dashboardMeta.textContent =
               "Based on up to " +
@@ -316,7 +228,21 @@
           loadDashboard();
         });
 
-        window.addEventListener("DOMContentLoaded", () => {
+        function refreshDashHint() {
+          var el = document.getElementById("dashModeHint");
+          if (!el || !window.ExpenseApp) return;
+          el.textContent = window.ExpenseApp.usesSalesforceBackend()
+            ? "Charts use Expense_Item_Price__c rows from Salesforce (standard REST), same session as the main form."
+            : "Charts use expenses in this browser (localStorage), same as the main form.";
+        }
+
+        window.addEventListener("DOMContentLoaded", async () => {
+          if (window.SFExpenseSession) {
+            try {
+              await SFExpenseSession.handleRedirectIfPresent();
+            } catch (e) {}
+          }
+          refreshDashHint();
           loadDashboard();
         });
       })();
