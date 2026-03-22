@@ -414,6 +414,8 @@
       <p id="editExpenseErr" class="history-status" role="status"></p>
     </dialog>
 
+    <script src="js/api-origin.js"></script>
+    <script src="js/netlify-api-base.js"></script>
     <script>
       (function () {
         const form = document.getElementById("f");
@@ -604,7 +606,7 @@
           const seq = ++remoteSearchSeq;
           try {
             const url =
-              "/.netlify/functions/search-items?q=" + encodeURIComponent(q) + "&limit=150";
+              netlifyFunctionsUrl("search-items?q=" + encodeURIComponent(q) + "&limit=150");
             const r = await fetch(url);
             const data = await r.json().catch(() => ({}));
             if (seq !== remoteSearchSeq) return;
@@ -691,7 +693,7 @@
           itemSearch.placeholder = "Loading items…";
           closeListbox();
 
-          const url = "/.netlify/functions/search-items?q=&limit=2000";
+          const url = netlifyFunctionsUrl("search-items?q=&limit=2000");
           const r = await fetch(url);
           const text = await r.text();
           let data;
@@ -803,7 +805,7 @@
           if (!confirm("Delete this expense? This cannot be undone.")) return;
           historyMsg.textContent = "";
           try {
-            const r = await fetch("/.netlify/functions/delete-expense", {
+            const r = await fetch(netlifyFunctionsUrl("delete-expense"), {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ recordId: row.id, website: "" }),
@@ -823,7 +825,7 @@
           historyMsg.textContent = "";
           historyBody.innerHTML = "<tr><td colspan='6'>Loading…</td></tr>";
           try {
-            const r = await fetch("/.netlify/functions/list-history?limit=50");
+            const r = await fetch(netlifyFunctionsUrl("list-history?limit=50"));
             const text = await r.text();
             let data;
             try {
@@ -918,7 +920,7 @@
               cuotas: editCuotas.value,
               referencia: editReferencia.value.trim() || null,
             };
-            const r = await fetch("/.netlify/functions/update-expense", {
+            const r = await fetch(netlifyFunctionsUrl("update-expense"), {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify(payload),
@@ -969,7 +971,7 @@
           }
           btnQuickCreateItem.disabled = true;
           try {
-            const r = await fetch("/.netlify/functions/create-item", {
+            const r = await fetch(netlifyFunctionsUrl("create-item"), {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ name: name }),
@@ -1027,7 +1029,7 @@
           }
 
           try {
-            const r = await fetch("/.netlify/functions/submit-expense", {
+            const r = await fetch(netlifyFunctionsUrl("submit-expense"), {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify(payload),

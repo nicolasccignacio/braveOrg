@@ -1,0 +1,53 @@
+# Publishes external-form-sample/public to GitHub Pages (static HTML only).
+# Functions still run on Netlify: set repository Variable NETLIFY_SITE_URL to your site origin
+# (no trailing slash), e.g. https://your-app.netlify.app — then enable Pages → Source: GitHub Actions.
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - "external-form-sample/public/**"
+      - ".github/workflows/deploy-github-pages.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write js/api-origin.js for cross-origin Netlify API
+        env:
+          NETLIFY_SITE_URL: ${{ vars.NETLIFY_SITE_URL }}
+        run: |
+          node <<'NODE'
+          const fs = require("fs");
+          const file = "external-form-sample/public/js/api-origin.js";
+          const o = (process.env.NETLIFY_SITE_URL || "").trim().replace(/\/$/, "");
+          fs.writeFileSync(
+            file,
+            "window.__NETLIFY_API_ORIGIN__ = " + JSON.stringify(o) + ";\n"
+          );
+          NODE
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: external-form-sample/public
+
+      - uses: actions/deploy-pages@v4
+        id: deployment
