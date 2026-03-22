@@ -1,7 +1,7 @@
-# Publishes external-form-sample/public to GitHub Pages (fully static app: localStorage + optional browser Gemini).
+# Publishes external-form-sample/public to GitHub Pages (static UI; data in browser localStorage).
 #
 # One-time: Repo → Settings → Pages → Source: "GitHub Actions" → Save.
-# We omit actions/configure-pages (unnecessary for static upload; avoids 404 before Pages is enabled).
+# We omit actions/configure-pages (avoids 404 before Pages is enabled).
 name: Deploy to GitHub Pages
 
 on:

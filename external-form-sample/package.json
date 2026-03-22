@@ -5,12 +5,6 @@
   "engines": {
     "node": ">=20"
   },
-  "description": "Static expense UI (localStorage) + optional browser PDF/Gemini; Netlify functions in repo remain for optional Salesforce backend.",
-  "dependencies": {
-    "@ai-sdk/google": "^3.0.52",
-    "@napi-rs/canvas": "0.1.80",
-    "ai": "^6.0.134",
-    "pdf-parse": "^2.4.5",
-    "pdfjs-dist": "5.4.296"
-  }
+  "description": "Static expense UI (localStorage) and browser-only bank PDF import; deployable to GitHub Pages without a backend.",
+  "dependencies": {}
 }

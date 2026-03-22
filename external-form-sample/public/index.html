@@ -302,8 +302,8 @@
 
     <h1>Create expense</h1>
     <p class="hint" style="font-size: 0.88rem; margin-top: -0.25rem">
-      <strong>GitHub Pages mode:</strong> items and expenses live in this browser only (<code>localStorage</code>). Use
-      <strong>Export data</strong> below to back up. Nothing is sent to Netlify or Salesforce.
+      Data stays in this browser (<code>localStorage</code>). Use <strong>Export data</strong> to back up. For Salesforce
+      or other backends, host your own API and wire the UI separately — this project no longer includes Netlify.
     </p>
 
     <h2>Expense</h2>
@@ -370,7 +370,7 @@
       <label for="referencia">Referencia</label>
       <input id="referencia" name="referencia" type="text" />
 
-      <button type="submit">Save expense</button>
+      <button type="submit" id="btnSubmitExpense">Save expense</button>
     </form>
     <div id="out" role="status"></div>
 
@@ -902,7 +902,13 @@
         });
 
         document.getElementById("btnExportData").addEventListener("click", function () {
-          const json = window.ExpenseAppLocal.exportAll();
+          let json;
+          try {
+            json = window.ExpenseAppLocal.exportAll();
+          } catch (e) {
+            alert(String(e.message || e));
+            return;
+          }
           const blob = new Blob([json], { type: "application/json" });
           const a = document.createElement("a");
           a.href = URL.createObjectURL(blob);
@@ -1012,7 +1018,7 @@
           try {
             await window.ExpenseAppLocal.submitExpense(payload);
             out.classList.add("ok");
-            out.textContent = "Expense saved locally.";
+            out.textContent = "Expense saved in this browser.";
             form.reset();
             setFormDefaults();
             clearItemPicker();
