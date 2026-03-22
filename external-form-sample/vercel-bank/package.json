@@ -1,0 +1,6 @@
+{
+  "name": "vercel-bank-deprecated",
+  "private": true,
+  "description": "DEPRECATED — deploy external-form-sample (parent folder) to Vercel instead; this folder is unused.",
+  "version": "0.0.0"
+}

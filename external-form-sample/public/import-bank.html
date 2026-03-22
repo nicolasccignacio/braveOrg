@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Import bank statement</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+      }
+      body {
+        font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+        max-width: min(100%, 48rem);
+        margin: 2rem auto;
+        padding: 0 1rem;
+        line-height: 1.45;
+      }
+      h1 {
+        font-size: 1.35rem;
+        font-weight: 650;
+      }
+      h2 {
+        font-size: 1.05rem;
+        font-weight: 650;
+        margin-top: 1.5rem;
+      }
+      .site-nav {
+        font-size: 0.9rem;
+        margin-bottom: 1rem;
+      }
+      .site-nav a {
+        color: inherit;
+        margin-right: 1rem;
+      }
+      .site-nav a[aria-current="page"] {
+        font-weight: 650;
+        text-decoration: none;
+      }
+      label {
+        display: block;
+        margin-top: 0.85rem;
+        font-weight: 600;
+        font-size: 0.9rem;
+      }
+      input[type="url"],
+      input[type="file"] {
+        width: 100%;
+        box-sizing: border-box;
+        margin-top: 0.2rem;
+        font: inherit;
+      }
+      input[type="file"] {
+        padding: 0.35rem 0;
+      }
+      button.primary {
+        margin-top: 1rem;
+        padding: 0.55rem 1.1rem;
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+        border-radius: 6px;
+        border: 1px solid rgba(127, 127, 127, 0.45);
+        background: canvas;
+        color: canvastext;
+      }
+      button.primary:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+      .hint {
+        font-size: 0.82rem;
+        opacity: 0.88;
+        margin-top: 0.35rem;
+      }
+      .msg {
+        margin-top: 1rem;
+        padding: 0.75rem;
+        border-radius: 6px;
+        font-size: 0.9rem;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      .msg.err {
+        background: rgba(198, 40, 40, 0.12);
+        color: inherit;
+      }
+      .msg.ok {
+        background: rgba(46, 125, 50, 0.12);
+      }
+      details.setup {
+        margin-top: 1rem;
+        padding: 0.65rem 0.85rem;
+        border: 1px solid rgba(127, 127, 127, 0.35);
+        border-radius: 8px;
+        font-size: 0.88rem;
+      }
+      details.setup summary {
+        cursor: pointer;
+        font-weight: 600;
+      }
+      details.setup ol {
+        margin: 0.5rem 0 0;
+        padding-left: 1.2rem;
+      }
+      .table-wrap {
+        overflow-x: auto;
+        margin-top: 1rem;
+        border: 1px solid rgba(127, 127, 127, 0.35);
+        border-radius: 6px;
+      }
+      table.results {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.85rem;
+      }
+      .results th,
+      .results td {
+        padding: 0.4rem 0.5rem;
+        text-align: left;
+        border-bottom: 1px solid rgba(127, 127, 127, 0.25);
+      }
+      .results th {
+        font-weight: 600;
+        background: rgba(127, 127, 127, 0.08);
+      }
+      .results td.num {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+      .disclaimer {
+        font-size: 0.82rem;
+        opacity: 0.9;
+        margin-top: 1rem;
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="site-nav" aria-label="Site">
+      <a href="index.html">Create expense</a>
+      <a href="dashboard.html">Dashboard</a>
+      <a href="import-bank.html" aria-current="page">Import bank</a>
+    </nav>
+
+    <h1>Import bank statement (PDF)</h1>
+    <p class="hint">
+      Text-based PDFs only (not scanned images). Results are AI-generated — always verify amounts against your
+      statement before recording them anywhere.
+    </p>
+
+    <details class="setup">
+      <summary>Vercel AI Gateway (one deploy)</summary>
+      <ol>
+        <li>
+          <strong>Import this repo in Vercel</strong> and set the project <strong>Root Directory</strong> to
+          <code>external-form-sample</code> (same folder as <code>public/</code> and <code>api/</code>).
+        </li>
+        <li>
+          Open the <a href="https://vercel.com/docs/ai-gateway" rel="noopener noreferrer">AI Gateway</a> tab in your
+          Vercel team, create an API key if needed, and add <code>AI_GATEWAY_API_KEY</code> to the project (required for
+          local <code>vercel dev</code>; production on Vercel can often use OIDC without the key — see
+          <a href="https://vercel.com/docs/ai-gateway/authentication-and-byok/authentication" rel="noopener noreferrer"
+            >AI Gateway authentication</a
+          >).
+        </li>
+        <li>
+          Optional: set <code>AI_GATEWAY_MODEL</code> to another
+          <a href="https://vercel.com/ai-gateway/models" rel="noopener noreferrer">Gateway model id</a> (default
+          <code>google/gemini-2.0-flash</code>).
+        </li>
+        <li>
+          Deploy. The site and API share one URL: this page calls <code>/api/extract-bank-pdf</code> automatically — no
+          URL field needed.
+        </li>
+        <li>
+          <strong>Only if</strong> you host these HTML files on Netlify (or elsewhere) but keep the API on Vercel: set
+          <code>ALLOWED_ORIGIN</code> on Vercel to that site’s origin (e.g. <code>https://yoursite.netlify.app</code>),
+          then paste your full Vercel API URL in the field below.
+        </li>
+      </ol>
+    </details>
+
+    <h2>Connection</h2>
+    <label for="apiUrl">Override API URL (optional)</label>
+    <input
+      id="apiUrl"
+      type="url"
+      autocomplete="off"
+      placeholder="Leave empty on Vercel — uses /api/extract-bank-pdf"
+    />
+    <p class="hint">
+      On Vercel, leave blank. For Netlify + separate Vercel API, paste e.g.
+      <code>https://your-app.vercel.app/api/extract-bank-pdf</code>. Saved in localStorage. Optional:
+      <code>window.__BANK_IMPORT_API__</code>.
+    </p>
+
+    <h2>PDF file</h2>
+    <label for="pdfFile">Statement (.pdf)</label>
+    <input id="pdfFile" type="file" accept=".pdf,application/pdf" />
+
+    <button type="button" class="primary" id="btnExtract" disabled>Extract expenses</button>
+    <div id="status" class="msg" role="status" style="display: none" aria-live="polite"></div>
+
+    <div id="metaLine" class="hint" style="margin-top: 0.75rem"></div>
+
+    <div class="table-wrap" id="tableWrap" hidden>
+      <table class="results" aria-label="Extracted transactions">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Description</th>
+            <th class="num">Amount</th>
+          </tr>
+        </thead>
+        <tbody id="resultBody"></tbody>
+      </table>
+    </div>
+
+    <p class="disclaimer">
+      This tool does not post to Salesforce automatically. Use the main expense form to enter verified rows.
+    </p>
+
+    <!-- Optional hard-code (before the script below):
+    <script>window.__BANK_IMPORT_API__ = "https://your-app.vercel.app/api/extract-bank-pdf";</script>
+    -->
+    <script>
+      (function () {
+        const LS_KEY = "bankImportApiUrl";
+        const apiUrlInput = document.getElementById("apiUrl");
+        const pdfFile = document.getElementById("pdfFile");
+        const btnExtract = document.getElementById("btnExtract");
+        const statusEl = document.getElementById("status");
+        const metaLine = document.getElementById("metaLine");
+        const tableWrap = document.getElementById("tableWrap");
+        const resultBody = document.getElementById("resultBody");
+
+        function showStatus(kind, text) {
+          statusEl.style.display = text ? "block" : "none";
+          statusEl.className = "msg" + (kind ? " " + kind : "");
+          statusEl.textContent = text || "";
+        }
+
+        function resolveApiUrl() {
+          if (typeof window.__BANK_IMPORT_API__ === "string" && window.__BANK_IMPORT_API__.trim()) {
+            return window.__BANK_IMPORT_API__.trim();
+          }
+          const manual = (apiUrlInput.value || "").trim();
+          if (manual) return manual;
+          const stored = (localStorage.getItem(LS_KEY) || "").trim();
+          if (stored) return stored;
+          return "/api/extract-bank-pdf";
+        }
+
+        function fileToBase64(file) {
+          return new Promise(function (resolve, reject) {
+            const r = new FileReader();
+            r.onload = function () {
+              const s = r.result;
+              const i = s.indexOf(",");
+              resolve(i >= 0 ? s.slice(i + 1) : s);
+            };
+            r.onerror = reject;
+            r.readAsDataURL(file);
+          });
+        }
+
+        apiUrlInput.value = localStorage.getItem(LS_KEY) || "";
+        apiUrlInput.addEventListener("change", function () {
+          localStorage.setItem(LS_KEY, apiUrlInput.value.trim());
+        });
+
+        pdfFile.addEventListener("change", function () {
+          btnExtract.disabled = !pdfFile.files || !pdfFile.files.length;
+        });
+
+        btnExtract.addEventListener("click", async function () {
+          const url = resolveApiUrl();
+          if (!url) {
+            showStatus("err", "Could not resolve API URL.");
+            return;
+          }
+          const f = pdfFile.files && pdfFile.files[0];
+          if (!f) {
+            showStatus("err", "Choose a PDF file.");
+            return;
+          }
+
+          showStatus("", "");
+          metaLine.textContent = "";
+          tableWrap.hidden = true;
+          resultBody.innerHTML = "";
+          btnExtract.disabled = true;
+
+          try {
+            const pdfBase64 = await fileToBase64(f);
+            const r = await fetch(url, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ pdfBase64: pdfBase64, filename: f.name }),
+            });
+            const data = await r.json().catch(function () {
+              return {};
+            });
+            if (!r.ok) {
+              showStatus("err", data.error || JSON.stringify(data));
+              return;
+            }
+            const rows = Array.isArray(data.transactions) ? data.transactions : [];
+            if (!rows.length) {
+              showStatus("ok", "No transactions returned. Try a different PDF or check the statement format.");
+              return;
+            }
+            showStatus("ok", "Extracted " + rows.length + " row(s). Verify each line against your PDF.");
+            const m = data.meta || {};
+            metaLine.textContent =
+              (m.model ? "Model: " + m.model + ". " : "") +
+              (m.rawTextLength != null ? "Text length: " + m.rawTextLength + " chars. " : "") +
+              (m.textTruncatedForModel ? "Statement text was truncated for the model. " : "") +
+              (m.pagesReadCap != null ? "Up to " + m.pagesReadCap + " pages read. " : "");
+
+            rows.forEach(function (row) {
+              const tr = document.createElement("tr");
+              const tdD = document.createElement("td");
+              tdD.textContent = row.date != null ? String(row.date) : "—";
+              const tdN = document.createElement("td");
+              tdN.textContent = row.description != null ? String(row.description) : "—";
+              const tdA = document.createElement("td");
+              tdA.className = "num";
+              tdA.textContent = row.amount != null ? String(row.amount) : "—";
+              tr.appendChild(tdD);
+              tr.appendChild(tdN);
+              tr.appendChild(tdA);
+              resultBody.appendChild(tr);
+            });
+            tableWrap.hidden = false;
+          } catch (e) {
+            showStatus("err", String(e.message || e));
+          } finally {
+            btnExtract.disabled = !pdfFile.files || !pdfFile.files.length;
+          }
+        });
+      })();
+    </script>
+  </body>
+</html>

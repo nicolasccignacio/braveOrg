@@ -1,5 +1,15 @@
 {
-  "name": "expense-form-netlify",
+  "name": "external-form-sample",
+  "version": "1.0.0",
   "private": true,
-  "description": "Netlify static form + functions → Salesforce REST (JWT)"
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "description": "Static UI in public/ + Vercel serverless api/ (bank PDF extract). Netlify can still publish public/ + netlify/functions only.",
+  "dependencies": {
+    "ai": "^6.0.134",
+    "pdf-parse": "^2.4.5",
+    "zod": "^4.3.6"
+  }
 }

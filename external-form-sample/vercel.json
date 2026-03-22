@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "api/extract-bank-pdf.js": {
+      "maxDuration": 60
+    }
+  }
+}
