@@ -6,10 +6,9 @@
   "engines": {
     "node": ">=20"
   },
-  "description": "Static UI in public/ + Vercel serverless api/ (bank PDF extract). Netlify can still publish public/ + netlify/functions only.",
+  "description": "Netlify site (public/) + Netlify Functions; bank PDF uses Vercel AI Gateway API key only (no Vercel deploy).",
   "dependencies": {
     "ai": "^6.0.134",
-    "pdf-parse": "^2.4.5",
-    "zod": "^4.3.6"
+    "pdf-parse": "^2.4.5"
   }
 }
