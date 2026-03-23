@@ -1,4 +1,4 @@
-# Publishes external-form-sample/public to GitHub Pages (static UI; data in browser localStorage).
+# Builds the React app (Vite) in external-form-sample/web and publishes dist/ to GitHub Pages.
 #
 # One-time: Repo → Settings → Pages → Source: "GitHub Actions" → Save.
 # Optional Salesforce (no end-user typing), read at deploy time only:
@@ -14,6 +14,15 @@
 # Do NOT put SF_CLIENT_SECRET into the static site — PKCE browser apps must not ship a client secret.
 # REST calls still use instance_url from the token response; SF_INSTANCE_URL here sets loginHost for /services/oauth2/* only.
 # Connected App callback URLs must match each page used to start login; enable CORS for the Pages origin.
+#
+# Optional Supabase (cloud Postgres + Auth; run supabase/migrations/*.sql in the Supabase SQL editor or CLI):
+#   Variables (or secrets): SUPABASE_URL — project URL, e.g. https://xxxxx.supabase.co
+#   Variables or secrets: SUPABASE_ANON_KEY — Project Settings → API → anon public key
+#   In Supabase: Authentication → URL Configuration → Site URL = your GitHub Pages origin (and add redirect URLs if needed).
+#
+# GitHub project Pages base path: set repository variable PAGES_BASE_PATH to /your-repo-name/ (leading and trailing slashes).
+# Example: site at https://user.github.io/braveOrg/ → PAGES_BASE_PATH=/braveOrg/
+# Omit or use / for a user site (username.github.io root).
 # We omit actions/configure-pages (avoids 404 before Pages is enabled).
 name: Deploy to GitHub Pages
 
@@ -21,7 +30,7 @@ on:
   push:
     branches: [main, master]
     paths:
-      - "external-form-sample/public/**"
+      - "external-form-sample/web/**"
       - ".github/workflows/deploy-github-pages.yml"
   workflow_dispatch:
 
@@ -55,7 +64,7 @@ jobs:
         run: |
           node <<'NODE'
           const fs = require("fs");
-          const path = "external-form-sample/public/js/sf-config.js";
+          const path = "external-form-sample/web/public/js/sf-config.js";
           const clientId = (process.env.SF_CLIENT_ID_SECRET || process.env.SF_CLIENT_ID_VAR || "").trim();
           const loginHost = (
             process.env.SF_INSTANCE_URL ||
@@ -81,9 +90,37 @@ jobs:
           fs.writeFileSync(path, body, "utf8");
           NODE
 
+      - name: Write js/supabase-config.js from Actions variables/secrets
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_ANON_KEY_SECRET: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_ANON_KEY_VAR: ${{ vars.SUPABASE_ANON_KEY }}
+        run: |
+          node <<'NODE'
+          const fs = require("fs");
+          const path = "external-form-sample/web/public/js/supabase-config.js";
+          const url = (process.env.SUPABASE_URL || "").trim().replace(/\/$/, "");
+          const anonKey = (process.env.SUPABASE_ANON_KEY_SECRET || process.env.SUPABASE_ANON_KEY_VAR || "").trim();
+          const cfg = { url, anonKey };
+          const body =
+            "/** Generated in CI: SUPABASE_URL, SUPABASE_ANON_KEY. */\n" +
+            "(function(){window.__SUPABASE_CONFIG__=" +
+            JSON.stringify(cfg) +
+            ";})();\n";
+          fs.writeFileSync(path, body, "utf8");
+          NODE
+
+      - name: Install and build React app
+        working-directory: external-form-sample/web
+        env:
+          VITE_BASE_PATH: ${{ vars.PAGES_BASE_PATH }}
+        run: |
+          npm ci
+          npm run build
+
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: external-form-sample/public
+          path: external-form-sample/web/dist
 
       - uses: actions/deploy-pages@v4
         id: deployment

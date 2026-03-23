@@ -68,6 +68,7 @@
 
     <script src="js/expense-app-local.js"></script>
     <script src="js/sf-config.js"></script>
+    <script src="js/supabase-config.js"></script>
     <script src="js/expense-app-salesforce-oauth.js?v=pkce-redirect-2"></script>
     <script src="js/expense-app-salesforce-rest.js"></script>
     <script src="js/expense-app-mode.js"></script>
@@ -232,9 +233,19 @@
         function refreshDashHint() {
           var el = document.getElementById("dashModeHint");
           if (!el || !window.ExpenseApp) return;
-          el.textContent = window.ExpenseApp.usesSalesforceBackend()
-            ? "Charts use Expense_Item_Price__c rows from Salesforce (standard REST), same session as the main form."
-            : "Charts use expenses in this browser (localStorage), same as the main form.";
+          var sf = window.ExpenseApp.usesSalesforceBackend();
+          var sb =
+            window.ExpenseApp.usesSupabaseBackend && window.ExpenseApp.usesSupabaseBackend();
+          if (sf) {
+            el.textContent =
+              "Charts use Expense_Item_Price__c rows from Salesforce (standard REST), same session as the main form.";
+          } else if (sb) {
+            el.textContent =
+              "Charts use expenses stored in Supabase for your signed-in user (same session as Create expense).";
+          } else {
+            el.textContent =
+              "Charts use expenses in this browser (localStorage). Sign in on Create expense to use Supabase.";
+          }
         }
 
         function reloadDashboardData() {
@@ -258,7 +269,15 @@
         document.addEventListener("visibilitychange", function () {
           if (document.visibilityState === "visible") reloadDashboardData();
         });
+
+        window.addEventListener("expense-backend-ready", function () {
+          if (typeof reloadDashboardData === "function") reloadDashboardData();
+        });
+        window.addEventListener("expense-auth-changed", function () {
+          if (typeof reloadDashboardData === "function") reloadDashboardData();
+        });
       })();
     </script>
+    <script type="module" src="js/expense-app-supabase-init.mjs"></script>
   </body>
 </html>

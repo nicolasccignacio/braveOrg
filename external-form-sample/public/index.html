@@ -42,6 +42,28 @@
       </p>
     </details>
 
+    <details class="md-disclosure hint" id="supabasePanel">
+      <summary>Supabase (cloud account)</summary>
+      <p id="supabaseDeployHint" class="md-body-text" style="margin-bottom: 0.75rem"></p>
+      <div id="supabaseSignedOut" class="supabase-auth-row">
+        <label class="supabase-field"
+          >Email
+          <input type="email" id="sbEmail" autocomplete="username" />
+        </label>
+        <label class="supabase-field"
+          >Password
+          <input type="password" id="sbPassword" autocomplete="current-password" />
+        </label>
+        <button type="button" id="btnSbSignIn" class="md-btn md-btn--filled">Sign in</button>
+        <button type="button" id="btnSbSignUp" class="md-btn md-btn--outlined">Create account</button>
+      </div>
+      <div id="supabaseSignedIn" hidden class="supabase-auth-row supabase-auth-row--signedin">
+        <span id="sbUserLabel" class="md-body-text"></span>
+        <button type="button" id="btnSbSignOut" class="md-btn md-btn--outlined">Sign out</button>
+      </div>
+      <p id="supabaseAuthMsg" class="history-status" role="status" aria-live="polite" style="margin-top: 0.5rem"></p>
+    </details>
+
     <section class="md-section-card" aria-labelledby="expense-heading">
     <h2 id="expense-heading" class="md-title-large">Expense</h2>
     <form id="f" novalidate>
@@ -174,6 +196,7 @@
 
     <script src="js/expense-app-local.js"></script>
     <script src="js/sf-config.js"></script>
+    <script src="js/supabase-config.js"></script>
     <script src="js/expense-app-salesforce-oauth.js?v=pkce-redirect-2"></script>
     <script src="js/expense-app-salesforce-rest.js"></script>
     <script src="js/expense-app-mode.js"></script>
@@ -185,15 +208,32 @@
 
         function refreshHints() {
           var sf = window.ExpenseApp && window.ExpenseApp.usesSalesforceBackend();
+          var sb =
+            window.ExpenseApp &&
+            window.ExpenseApp.usesSupabaseBackend &&
+            window.ExpenseApp.usesSupabaseBackend();
           if (modeHint) {
-            modeHint.innerHTML = sf
-              ? "<strong>Salesforce:</strong> standard REST API against <code>Item__c</code> and <code>Expense_Item_Price__c</code> (as your signed-in user)."
-              : "<strong>Browser-only:</strong> data in <code>localStorage</code> on this device. Use <strong>Salesforce → Connect</strong> above to use your org.";
+            if (sf) {
+              modeHint.innerHTML =
+                "<strong>Salesforce:</strong> standard REST API against <code>Item__c</code> and <code>Expense_Item_Price__c</code> (as your signed-in user).";
+            } else if (sb) {
+              modeHint.innerHTML =
+                "<strong>Supabase:</strong> items and expenses are stored in Postgres for your signed-in user (Row Level Security). Disconnect Salesforce and sign out of Supabase to use browser-only storage.";
+            } else {
+              modeHint.innerHTML =
+                "<strong>Browser-only:</strong> data in <code>localStorage</code> on this device. Use <strong>Salesforce</strong> or <strong>Supabase</strong> above for cloud sync.";
+            }
           }
           if (dataHint) {
-            dataHint.innerHTML = sf
-              ? "Export downloads JSON from Salesforce (REST query). Import is disabled — use Data Loader or disconnect and use browser-only mode."
-              : "Export a JSON backup. Import replaces all items and expenses in this browser.";
+            if (sf) {
+              dataHint.innerHTML =
+                "Export downloads JSON from Salesforce (REST query). Import is disabled — use Data Loader or disconnect and use browser-only mode.";
+            } else if (sb) {
+              dataHint.innerHTML =
+                "Export downloads JSON from your Supabase project. Import replaces all items and expenses for this account.";
+            } else {
+              dataHint.innerHTML = "Export a JSON backup. Import replaces all items and expenses in this browser.";
+            }
           }
           var imp = document.getElementById("importDataFile");
           if (imp) {
@@ -791,9 +831,118 @@
           }
         });
 
+        function supabaseCfg() {
+          return window.__SUPABASE_CONFIG__ || {};
+        }
+
+        function refreshSupabasePanel() {
+          var hint = document.getElementById("supabaseDeployHint");
+          var outSigned = document.getElementById("supabaseSignedOut");
+          var inSigned = document.getElementById("supabaseSignedIn");
+          var label = document.getElementById("sbUserLabel");
+          var cfg = supabaseCfg();
+          var ok = !!(cfg.url && cfg.anonKey);
+          if (hint) {
+            hint.textContent = ok
+              ? "Sign in to sync items and expenses to your Supabase project (same session on every page that loads this app)."
+              : "Not configured: set SUPABASE_URL and SUPABASE_ANON_KEY in deploy variables, or edit public/js/supabase-config.js for local use.";
+          }
+          if (outSigned) {
+            var showForm = ok && !window.__supabaseSessionActive;
+            outSigned.style.display = showForm ? "flex" : "none";
+            var inputs = outSigned.querySelectorAll("input,button");
+            for (var i = 0; i < inputs.length; i++) inputs[i].disabled = !ok;
+          }
+          if (inSigned) {
+            var active = ok && window.__supabaseSessionActive;
+            inSigned.hidden = !active;
+            if (label && window.__supabase && window.__supabase.auth) {
+              window.__supabase.auth.getSession().then(function (res) {
+                var u = res && res.data && res.data.session && res.data.session.user;
+                if (u && label) label.textContent = u.email || u.id || "Signed in";
+              });
+            }
+          }
+        }
+
+        document.getElementById("btnSbSignIn").addEventListener("click", async function () {
+          var msg = document.getElementById("supabaseAuthMsg");
+          if (!window.__supabase) {
+            if (msg) msg.textContent = "Supabase is not configured.";
+            return;
+          }
+          var email = (document.getElementById("sbEmail") && document.getElementById("sbEmail").value) || "";
+          var password = (document.getElementById("sbPassword") && document.getElementById("sbPassword").value) || "";
+          if (msg) {
+            msg.textContent = "";
+            delete msg.dataset.sticky;
+          }
+          try {
+            var res = await window.__supabase.auth.signInWithPassword({ email: email.trim(), password: password });
+            if (res.error) throw res.error;
+            if (msg) msg.textContent = "Signed in.";
+          } catch (e) {
+            if (msg) {
+              msg.textContent = String((e && e.message) || e);
+              msg.dataset.sticky = "1";
+            }
+          }
+        });
+
+        document.getElementById("btnSbSignUp").addEventListener("click", async function () {
+          var msg = document.getElementById("supabaseAuthMsg");
+          if (!window.__supabase) {
+            if (msg) msg.textContent = "Supabase is not configured.";
+            return;
+          }
+          var email = (document.getElementById("sbEmail") && document.getElementById("sbEmail").value) || "";
+          var password = (document.getElementById("sbPassword") && document.getElementById("sbPassword").value) || "";
+          if (msg) {
+            msg.textContent = "";
+            delete msg.dataset.sticky;
+          }
+          try {
+            var res = await window.__supabase.auth.signUp({ email: email.trim(), password: password });
+            if (res.error) throw res.error;
+            if (msg) {
+              msg.textContent =
+                res.data && res.data.session
+                  ? "Account created and signed in."
+                  : "Check your email to confirm the account (if confirmation is enabled in Supabase).";
+              msg.dataset.sticky = "1";
+            }
+          } catch (e) {
+            if (msg) {
+              msg.textContent = String((e && e.message) || e);
+              msg.dataset.sticky = "1";
+            }
+          }
+        });
+
+        document.getElementById("btnSbSignOut").addEventListener("click", async function () {
+          var msg = document.getElementById("supabaseAuthMsg");
+          if (window.__supabase) {
+            try {
+              await window.__supabase.auth.signOut();
+            } catch (e) {}
+          }
+          if (msg) {
+            msg.textContent = "";
+            delete msg.dataset.sticky;
+          }
+        });
+
+        window.addEventListener("expense-backend-ready", function () {
+          if (typeof reloadExpensePageData === "function") reloadExpensePageData();
+        });
+        window.addEventListener("expense-auth-changed", function () {
+          if (typeof reloadExpensePageData === "function") reloadExpensePageData();
+        });
+
         function reloadExpensePageData() {
           refreshHints();
           refreshSfDeployHint();
+          refreshSupabasePanel();
           loadAllItems()
             .catch((e) => {
               itemsCache = [];
@@ -862,9 +1011,14 @@
           try {
             await window.ExpenseApp.submitExpense(payload);
             out.classList.add("ok");
-            out.textContent = window.ExpenseApp.usesSalesforceBackend()
+            var sfOk = window.ExpenseApp.usesSalesforceBackend();
+            var sbOk =
+              window.ExpenseApp.usesSupabaseBackend && window.ExpenseApp.usesSupabaseBackend();
+            out.textContent = sfOk
               ? "Expense saved in Salesforce."
-              : "Expense saved in this browser.";
+              : sbOk
+                ? "Expense saved to Supabase."
+                : "Expense saved in this browser.";
             form.reset();
             setFormDefaults();
             clearItemPicker();
@@ -878,5 +1032,6 @@
         });
       })();
     </script>
+    <script type="module" src="js/expense-app-supabase-init.mjs"></script>
   </body>
 </html>

@@ -1,0 +1,4 @@
+/* App-level tweaks; main theme is public/css/material-theme.css */
+#root {
+  min-height: 100vh;
+}
